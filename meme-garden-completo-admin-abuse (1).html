@@ -1,0 +1,6475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brainrot Garden: Online Leaderboard Edition</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Outfit:wght@400;700;900&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Firebase opcional -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --card-bg: rgba(26, 29, 41, 0.94);
+      --accent-green: #00ffaa;
+      --accent-pink: #ff0055;
+      --accent-gold: #ffcc00;
+      --accent-blue: #00d2ff;
+      --accent-purple: #a855f7;
+
+      --rarity-common: #b9b9b9;
+      --rarity-rare: #4d9cff;
+      --rarity-epic: #b84cff;
+      --rarity-legendary: #ffd21c;
+      --rarity-mythic: #ff304f;
+
+      /* Exotic original */
+      --rarity-exotic: #7FFFD4;
+
+      /* Secret: negro / gris metálico */
+      --rarity-secret:
+        linear-gradient(
+          135deg,
+          #050505 0%,
+          #2a2a2a 18%,
+          #707070 35%,
+          #181818 52%,
+          #4b4b4b 70%,
+          #050505 100%
+        );
+
+      --text-color: #fff;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Outfit", sans-serif;
+      user-select: none;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 50% -10%, #293252 0%, transparent 42%),
+        radial-gradient(circle at 10% 90%, rgba(0, 255, 170, .08), transparent 30%),
+        radial-gradient(circle at 90% 70%, rgba(168, 85, 247, .08), transparent 30%),
+        #090b10;
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      position: relative;
+      overflow-x: hidden;
+      transition:
+        background .5s ease,
+        filter .3s ease;
+    }
+
+    /* =====================================================
+       MODO ADMIN ABUSE
+    ===================================================== */
+
+    body.admin-abuse-active {
+      background:
+        radial-gradient(circle at 50% -15%, rgba(255, 0, 85, .35), transparent 38%),
+        radial-gradient(circle at 10% 20%, rgba(0, 210, 255, .20), transparent 30%),
+        radial-gradient(circle at 90% 80%, rgba(255, 204, 0, .18), transparent 32%),
+        linear-gradient(135deg, #180018, #071521, #16000d);
+    }
+
+    body.admin-abuse-active::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background:
+        radial-gradient(
+          circle at center,
+          transparent 40%,
+          rgba(255,0,85,.08) 100%
+        );
+      animation: adminPulse 2s ease-in-out infinite alternate;
+    }
+
+    body.admin-abuse-active h1 {
+      background:
+        linear-gradient(
+          90deg,
+          #ff0055,
+          #ffcc00,
+          #00ffaa,
+          #00d2ff,
+          #a855f7,
+          #ff0055
+        );
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: adminRainbow 2.5s linear infinite;
+      filter: drop-shadow(0 0 12px rgba(255,0,85,.35));
+    }
+
+    body.admin-abuse-active .stats-bar,
+    body.admin-abuse-active .garden-container,
+    body.admin-abuse-active .inventory-box,
+    body.admin-abuse-active .shop-panel {
+      border-color: rgba(255, 0, 85, .35);
+      box-shadow:
+        0 0 25px rgba(255, 0, 85, .10),
+        0 10px 35px rgba(0,0,0,.55);
+    }
+
+    body.admin-abuse-active .tab-btn.active {
+      background:
+        linear-gradient(
+          90deg,
+          #ff0055,
+          #ffcc00,
+          #00ffaa,
+          #00d2ff
+        );
+      background-size: 300% 100%;
+      animation: adminRainbow 2s linear infinite;
+    }
+
+    body.admin-abuse-active .update-panel-box {
+      border-color: #ff0055;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255,0,85,.20),
+          rgba(255,204,0,.15),
+          rgba(0,210,255,.16)
+        );
+      box-shadow: 0 0 30px rgba(255,0,85,.15);
+    }
+
+    body.admin-abuse-active .admin-badge {
+      animation:
+        adminBadgePulse .8s ease-in-out infinite alternate,
+        adminBadgeRainbow 2s linear infinite;
+      transform-origin: center;
+    }
+
+    @keyframes adminPulse {
+      from {
+        opacity: .35;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes adminRainbow {
+      0% {
+        background-position: 0% 50%;
+      }
+      100% {
+        background-position: 300% 50%;
+      }
+    }
+
+    @keyframes adminBadgePulse {
+      from {
+        transform: scale(1);
+        box-shadow: 0 0 5px rgba(255,204,0,.25);
+      }
+      to {
+        transform: scale(1.04);
+        box-shadow: 0 0 20px rgba(255,204,0,.65);
+      }
+    }
+
+    @keyframes adminBadgeRainbow {
+      0% {
+        border-color: #ff0055;
+      }
+      25% {
+        border-color: #ffcc00;
+      }
+      50% {
+        border-color: #00ffaa;
+      }
+      75% {
+        border-color: #00d2ff;
+      }
+      100% {
+        border-color: #ff0055;
+      }
+    }
+
+    /* =====================================================
+       CONFETI
+    ===================================================== */
+
+    #confettiContainer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 9999;
+      display: none;
+    }
+
+    body.admin-abuse-active #confettiContainer {
+      display: block;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -30px;
+      width: 9px;
+      height: 15px;
+      border-radius: 2px;
+      opacity: .95;
+      animation-name: confettiFall;
+      animation-timing-function: linear;
+      animation-iteration-count: 1;
+      will-change: transform;
+    }
+
+    @keyframes confettiFall {
+      0% {
+        transform:
+          translate3d(0, -30px, 0)
+          rotate(0deg);
+      }
+
+      25% {
+        transform:
+          translate3d(var(--sway1), 25vh, 0)
+          rotate(180deg);
+      }
+
+      50% {
+        transform:
+          translate3d(var(--sway2), 50vh, 0)
+          rotate(360deg);
+      }
+
+      75% {
+        transform:
+          translate3d(var(--sway3), 75vh, 0)
+          rotate(540deg);
+      }
+
+      100% {
+        transform:
+          translate3d(var(--sway4), 110vh, 0)
+          rotate(720deg);
+      }
+    }
+
+    /* =====================================================
+       ADMIN TOP BANNER
+    ===================================================== */
+
+    #adminEventBanner {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      display: none;
+      pointer-events: none;
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: 2px solid #ffcc00;
+      background:
+        linear-gradient(
+          90deg,
+          rgba(255,0,85,.92),
+          rgba(255,204,0,.92),
+          rgba(0,255,170,.92),
+          rgba(0,210,255,.92)
+        );
+      background-size: 300% 100%;
+      color: #000;
+      font-weight: 900;
+      font-size: .82rem;
+      box-shadow:
+        0 0 25px rgba(255,204,0,.4),
+        0 5px 25px rgba(0,0,0,.45);
+      animation:
+        adminRainbow 2s linear infinite,
+        adminBannerPulse 1s ease-in-out infinite alternate;
+      white-space: nowrap;
+    }
+
+    body.admin-abuse-active #adminEventBanner {
+      display: block;
+    }
+
+    @keyframes adminBannerPulse {
+      from {
+        transform: translateX(-50%) scale(1);
+      }
+      to {
+        transform: translateX(-50%) scale(1.04);
+      }
+    }
+
+    * {
+      scrollbar-width: thin;
+    }
+
+    button,
+    input {
+      -webkit-user-select: auto;
+      user-select: auto;
+    }
+
+    button {
+      touch-action: manipulation;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+      position: relative;
+      width: 100%;
+      max-width: 1050px;
+      z-index: 5;
+    }
+
+    h1 {
+      font-family: "Fredoka", sans-serif;
+      font-size: 2.5rem;
+      background: linear-gradient(45deg, var(--accent-green), var(--accent-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 1px;
+    }
+
+    .codes-btn,
+    .streak-btn {
+      position: absolute;
+      top: 5px;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: .85rem;
+      cursor: pointer;
+      transition: opacity .15s ease;
+    }
+
+    .codes-btn {
+      right: 15px;
+      background: linear-gradient(45deg, var(--accent-purple), var(--accent-blue));
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, .25);
+    }
+
+    .streak-btn {
+      left: 15px;
+      background: linear-gradient(45deg, var(--accent-gold), #ff5500);
+      color: #000;
+      box-shadow: 0 4px 15px rgba(255, 204, 0, .2);
+    }
+
+    .codes-btn:hover,
+    .streak-btn:hover,
+    .name-btn:hover,
+    .config-btn:hover,
+    .buy-btn:hover:not(:disabled),
+    .rebirth-btn:hover:not(:disabled),
+    .claim-btn:hover:not(:disabled),
+    .tab-btn:hover {
+      opacity: .88;
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      background: var(--card-bg);
+      padding: 12px 20px;
+      border-radius: 50px;
+      border: 1px solid rgba(255,255,255,.1);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 1050px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      position: relative;
+      z-index: 5;
+    }
+
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: .95rem;
+    }
+
+    .stat-val {
+      color: var(--accent-gold);
+      font-size: 1.1rem;
+    }
+
+    .rebirth-badge {
+      background: linear-gradient(45deg, var(--accent-purple), var(--accent-pink));
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 900;
+      font-size: .85rem;
+    }
+
+    .main-container {
+      display: flex;
+      gap: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 1050px;
+      width: 100%;
+      position: relative;
+      z-index: 5;
+    }
+
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 320px;
+      min-width: 0;
+    }
+
+    .garden-container,
+    .inventory-box,
+    .shop-panel {
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,.08);
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+      transition:
+        border-color .4s ease,
+        box-shadow .4s ease,
+        background .4s ease;
+    }
+
+    .garden-container {
+      padding: 20px;
+      border-radius: 24px;
+    }
+
+    .garden-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 4px;
+      overscroll-behavior: contain;
+    }
+
+    .plot {
+      height: 120px;
+      background: rgba(0,255,170,.05);
+      border: 2px dashed rgba(0,255,170,.3);
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+      touch-action: manipulation;
+    }
+
+    .plot:hover {
+      border-color: var(--accent-green);
+      background: rgba(0,255,170,.09);
+    }
+
+    .plot.occupied {
+      background: rgba(30,35,55,.92);
+      border: 2px solid var(--accent-green);
+    }
+
+    .plot-icon {
+      font-size: 2.3rem;
+    }
+
+    .plot-name {
+      font-size: .75rem;
+      font-weight: 700;
+      margin-top: 4px;
+      text-align: center;
+      padding: 0 4px;
+    }
+
+    .inventory-box {
+      padding: 15px;
+      border-radius: 20px;
+    }
+
+    .inventory-list {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      min-height: 55px;
+      padding-bottom: 5px;
+      overscroll-behavior-x: contain;
+      cursor: grab;
+    }
+
+    .inventory-list:active {
+      cursor: grabbing;
+    }
+
+    .inv-item {
+      min-width: 48px;
+      height: 48px;
+      background: rgba(0,0,0,.4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color .12s ease, box-shadow .12s ease;
+      touch-action: manipulation;
+    }
+
+    .inv-item:hover {
+      border-color: rgba(255,255,255,.25);
+    }
+
+    .inv-item.selected {
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 10px rgba(255,204,0,.6);
+    }
+
+    .shop-panel {
+      padding: 20px;
+      border-radius: 24px;
+      flex: 1;
+      min-width: 330px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .shop-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      flex: 1 1 85px;
+      padding: 9px 6px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(255,255,255,.05);
+      color: #aaa;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: .78rem;
+      transition: background .12s ease, color .12s ease;
+      text-align: center;
+      min-height: 38px;
+    }
+
+    .tab-btn.active {
+      background: var(--accent-blue);
+      color: #000;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .restock-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0,0,0,.4);
+      padding: 8px 15px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      font-weight: bold;
+      font-size: .85rem;
+      border: 1px solid rgba(255,255,255,.05);
+    }
+
+    .shop-list-container {
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 4px;
+      overscroll-behavior: contain;
+    }
+
+    .shop-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15,18,28,.7);
+      padding: 10px 14px;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,.05);
+      transition:
+        border-color .2s ease,
+        box-shadow .2s ease,
+        transform .2s ease;
+    }
+
+    /* Mítico garantizado al terminar Admin Abuse */
+    .shop-item.admin-guaranteed-mythic {
+      border-color: #ff304f;
+      box-shadow:
+        0 0 14px rgba(255,48,79,.35),
+        inset 0 0 18px rgba(255,48,79,.05);
+      animation: guaranteedMythicPulse 1.1s ease-in-out infinite alternate;
+    }
+
+    .shop-item.admin-guaranteed-mythic::after {
+      content: "🔥 DROP ADMIN";
+      position: absolute;
+      transform: translate(0, -38px);
+      pointer-events: none;
+      font-size: .58rem;
+      font-weight: 900;
+      color: #ff304f;
+    }
+
+    @keyframes guaranteedMythicPulse {
+      from {
+        box-shadow:
+          0 0 8px rgba(255,48,79,.20),
+          inset 0 0 10px rgba(255,48,79,.03);
+      }
+      to {
+        box-shadow:
+          0 0 22px rgba(255,48,79,.55),
+          inset 0 0 20px rgba(255,48,79,.08);
+      }
+    }
+
+    .item-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .item-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .item-info > div {
+      min-width: 0;
+    }
+
+    .item-name {
+      font-weight: bold;
+      font-size: .85rem;
+      word-break: break-word;
+    }
+
+    .stock-tag {
+      display: inline-block;
+      font-size: .63rem;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 6px;
+      margin-left: 5px;
+      vertical-align: middle;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+
+    .rarity-common {
+      background: linear-gradient(135deg,#777,#d5d5d5,#777);
+      color: #111;
+    }
+
+    .rarity-rare {
+      background: linear-gradient(135deg,#164d9b,#55a7ff,#1a5cb2);
+    }
+
+    .rarity-epic {
+      background: linear-gradient(135deg,#6822a5,#d45aff,#7124b0);
+    }
+
+    .rarity-legendary {
+      background: linear-gradient(135deg,#a66d00,#ffe66b,#c18a00);
+      color: #111;
+    }
+
+    .rarity-mythic {
+      background: linear-gradient(135deg,#870019,#ff4d69,#99001d);
+    }
+
+    .rarity-exotic {
+      background: #7FFFD4;
+      color: #000;
+    }
+
+    .rarity-secret {
+      background:
+        linear-gradient(
+          120deg,
+          #030303 0%,
+          #222 22%,
+          #777 42%,
+          #171717 55%,
+          #555 74%,
+          #050505 100%
+        );
+      color: #fff;
+      border-color: #888;
+      box-shadow: inset 0 1px 2px rgba(255,255,255,.25);
+    }
+
+    .buy-btn {
+      background: linear-gradient(45deg,var(--accent-pink),#ff5500);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: .85rem;
+      transition: opacity .12s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .buy-btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .rebirth-box {
+      background: linear-gradient(
+        135deg,
+        rgba(168,85,247,.2),
+        rgba(255,0,85,.15)
+      );
+      border: 2px solid var(--accent-purple);
+      border-radius: 18px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .rebirth-box h2 {
+      font-family: "Fredoka", sans-serif;
+      color: var(--accent-purple);
+      margin-bottom: 8px;
+    }
+
+    .rebirth-box p {
+      font-size: .85rem;
+      color: #ddd;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .rebirth-requirements {
+      background: rgba(0,0,0,.3);
+      border-radius: 12px;
+      padding: 10px;
+      margin: 12px 0;
+      font-size: .85rem;
+      text-align: left;
+    }
+
+    .req-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 5px;
+    }
+
+    .req-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .rebirth-btn {
+      background: linear-gradient(45deg,var(--accent-purple),var(--accent-pink));
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity .12s ease;
+    }
+
+    .rebirth-btn:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+
+    /* UPDATE */
+    .update-panel-box {
+      background: linear-gradient(
+        135deg,
+        rgba(0,210,255,.15),
+        rgba(168,85,247,.15)
+      );
+      border: 2px solid var(--accent-blue);
+      border-radius: 18px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .update-panel-box h2 {
+      font-family: "Fredoka", sans-serif;
+      color: var(--accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .update-timer-display {
+      font-family: monospace;
+      font-size: 1.35rem;
+      color: var(--accent-gold);
+      background: rgba(0,0,0,.5);
+      padding: 10px;
+      border-radius: 12px;
+      margin: 12px 0;
+      border: 1px solid rgba(255,255,255,.1);
+    }
+
+    .update-content-box {
+      background: rgba(0,0,0,.4);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: left;
+      margin-top: 12px;
+      font-size: .85rem;
+    }
+
+    .update-content-box h4 {
+      color: var(--accent-green);
+      margin-bottom: 8px;
+      font-family: "Fredoka", sans-serif;
+    }
+
+    .update-content-box ul {
+      padding-left: 18px;
+      color: #ddd;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* LEADERBOARD */
+    .name-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .name-input,
+    .codes-input,
+    .config-field input {
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.5);
+      color: #fff;
+      font-weight: bold;
+      outline: none;
+    }
+
+    .name-input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name-input:focus,
+    .codes-input:focus,
+    .config-field input:focus,
+    .type-input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(0,210,255,.12);
+    }
+
+    .name-btn {
+      background: var(--accent-green);
+      color: #000;
+      font-weight: 800;
+      border: none;
+      padding: 0 15px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .leaderboard-status {
+      text-align: center;
+      font-size: .72rem;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 320px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .lb-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,0,0,.3);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: .88rem;
+      border: 1px solid rgba(255,255,255,.05);
+    }
+
+    .lb-card.is-player {
+      background: rgba(0,255,170,.15);
+      border: 1px solid var(--accent-green);
+      font-weight: bold;
+    }
+
+    .lb-rank {
+      font-weight: 900;
+      width: 35px;
+      flex-shrink: 0;
+    }
+
+    .lb-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .lb-player-info {
+      min-width: 0;
+    }
+
+    .lb-player-name {
+      font-weight: bold;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+    }
+
+    .lb-score {
+      color: var(--accent-gold);
+      font-weight: bold;
+      white-space: nowrap;
+      font-size: .78rem;
+    }
+
+    .my-rank-box {
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(0,255,170,.08);
+      border: 1px solid rgba(0,255,170,.3);
+      border-radius: 12px;
+      text-align: center;
+      font-size: .8rem;
+    }
+
+    .config-btn {
+      background: var(--accent-blue);
+      color: #000;
+      font-weight: 800;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    /* MODALES */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(5,5,10,.88);
+      backdrop-filter: blur(10px);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      padding: 15px;
+    }
+
+    .alert-box,
+    .config-modal-box,
+    .codes-modal-box,
+    .streak-modal-box {
+      background: #151824;
+      border: 2px solid var(--accent-blue);
+      padding: 25px;
+      border-radius: 20px;
+      text-align: center;
+      width: 90%;
+      max-width: 440px;
+      max-height: 92vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 30px rgba(0,0,0,.8);
+    }
+
+    .codes-modal-box h2,
+    .streak-modal-box h2 {
+      font-family: "Fredoka", sans-serif;
+      margin-bottom: 15px;
+    }
+
+    .codes-input {
+      width: 100%;
+      font-size: 1rem;
+      text-align: center;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn-save,
+    .btn-cancel {
+      flex: 1;
+      border: none;
+      padding: 11px 15px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: var(--accent-green);
+      color: #000;
+    }
+
+    .btn-cancel {
+      background: #333;
+      color: #fff;
+    }
+
+    .config-field {
+      text-align: left;
+      margin-bottom: 10px;
+    }
+
+    .config-field label {
+      display: block;
+      font-size: .75rem;
+      color: #aaa;
+      margin-bottom: 4px;
+    }
+
+    .config-field input {
+      width: 100%;
+    }
+
+    .streak-grid {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .streak-day {
+      background: rgba(0,0,0,.4);
+      border: 2px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      padding: 10px 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      min-height: 90px;
+    }
+
+    .streak-day.claimed {
+      border-color: var(--accent-green);
+      background: rgba(0,255,170,.1);
+      color: var(--accent-green);
+    }
+
+    .streak-day.current {
+      border-color: var(--accent-gold);
+      background: rgba(255,204,0,.15);
+    }
+
+    .streak-day-icon {
+      font-size: 1.5rem;
+      margin: 5px 0;
+    }
+
+    .claim-btn {
+      width: 100%;
+      background: linear-gradient(45deg,var(--accent-gold),#ff5500);
+      color: #000;
+      font-weight: 800;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 10px;
+    }
+
+    .claim-btn:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .target-word {
+      font-family: monospace;
+      font-size: 2rem;
+      color: var(--accent-green);
+      margin: 10px 0;
+      letter-spacing: 2px;
+    }
+
+    .type-input {
+      font-size: 1.4rem;
+      padding: 8px;
+      width: 80%;
+      text-align: center;
+      border-radius: 10px;
+      text-transform: uppercase;
+      background: #080a0f;
+      color: white;
+      border: 2px solid #444;
+      outline: none;
+    }
+
+    .timer-text {
+      font-size: .85rem;
+      color: var(--accent-gold);
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .timer-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,.1);
+      margin-top: 8px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: var(--accent-pink);
+      width: 100%;
+    }
+
+    .save-indicator {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,255,170,.15);
+      border: 1px solid var(--accent-green);
+      color: var(--accent-green);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: .75rem;
+      opacity: 0;
+      transition: opacity .25s ease;
+      z-index: 200;
+      pointer-events: none;
+    }
+
+    .admin-badge {
+      display: inline-block;
+      background: linear-gradient(135deg,#111,#777,#111);
+      border: 1px solid #999;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: .7rem;
+      font-weight: 900;
+      margin-top: 8px;
+    }
+
+    .admin-active {
+      color: var(--accent-gold) !important;
+    }
+
+    /* Mensaje de drop garantizado */
+    #adminDropMessage {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #ff304f;
+      background: rgba(255,48,79,.12);
+      color: #ff6b80;
+      font-size: .78rem;
+      font-weight: 900;
+      text-align: center;
+      animation: dropMessagePulse 1s ease-in-out infinite alternate;
+    }
+
+    @keyframes dropMessagePulse {
+      from {
+        transform: scale(1);
+      }
+      to {
+        transform: scale(1.025);
+      }
+    }
+
+    
+    /* ===== ADMIN ABUSE CONFETI ===== */
+    #confettiContainer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50;display:none;}
+    .confetti{position:absolute;top:-20px;width:10px;height:16px;border-radius:2px;animation:confettiFall linear forwards;}
+    @keyframes confettiFall{to{transform:translateY(110vh) rotate(720deg);opacity:.9;}}
+
+    @media (max-width: 700px) {
+      body {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 1.9rem;
+        padding: 38px 50px 5px;
+      }
+
+      .codes-btn,
+      .streak-btn {
+        top: 0;
+        font-size: .72rem;
+        padding: 7px 9px;
+      }
+
+      .codes-btn {
+        right: 0;
+      }
+
+      .streak-btn {
+        left: 0;
+      }
+
+      .main-container {
+        flex-direction: column;
+      }
+
+      .left-panel,
+      .shop-panel {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .stats-bar {
+        border-radius: 20px;
+        padding: 10px;
+      }
+
+      .garden-grid {
+        max-height: none;
+      }
+
+      .shop-list-container {
+        max-height: 450px;
+      }
+
+      .shop-item {
+        align-items: flex-start;
+      }
+
+      .streak-grid {
+        gap: 6px;
+      }
+
+      .streak-day {
+        min-height: 80px;
+      }
+
+      #adminEventBanner {
+        top: 5px;
+        font-size: .68rem;
+        padding: 6px 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="confettiContainer"></div>
+
+  <!-- EVENTO ADMIN ABUSE -->
+  <div id="adminEventBanner">
+    🔥⚡ ADMIN ABUSE ⚡🔥 · x5 STOCK · x2 DINERO · ¡FIESTA!
+  </div>
+
+  <div id="confettiContainer"></div>
+
+  <header>
+    <button class="streak-btn" onclick="openStreakModal()">🔥 Racha Diaria</button>
+
+    <h1>🧠 BRAINROT GARDEN</h1>
+
+    <button class="codes-btn" onclick="openCodesModal()">🎁 Códigos</button>
+  </header>
+
+  <div class="stats-bar">
+    <div class="stat-card">
+      🪙 <span id="coins" class="stat-val">100</span>
+    </div>
+
+    <div class="stat-card">
+      ⚡ <span id="cps" class="stat-val">0</span>/s
+    </div>
+
+    <div class="stat-card">
+      🛡️ <span id="shields" class="stat-val">0</span>
+    </div>
+
+    <div class="stat-card">
+      🌀 <span id="rebirthsVal" class="rebirth-badge">Rebirth 0/8</span>
+    </div>
+
+    <div class="stat-card">
+      📦 <span id="plotsVal" class="stat-val">4 Parcelas</span>
+    </div>
+  </div>
+
+  <div class="main-container">
+
+    <div class="left-panel">
+
+      <div class="garden-container">
+        <h3 style="font-size:.95rem;color:var(--accent-green);margin-bottom:10px;">
+          🪴 Tu Jardín
+        </h3>
+
+        <div class="garden-grid" id="garden"></div>
+      </div>
+
+      <div class="inventory-box">
+        <h3 style="font-size:.9rem;color:var(--accent-blue);margin-bottom:8px;">
+          🎒 Inventario de Memes
+        </h3>
+
+        <div class="inventory-list" id="inventoryList"></div>
+      </div>
+
+    </div>
+
+    <div class="shop-panel">
+
+      <div class="shop-tabs">
+
+        <button class="tab-btn active" onclick="switchTab('memes', this)">
+          🌱 Memes
+        </button>
+
+        <button class="tab-btn" onclick="switchTab('powerups', this)">
+          ⚡ Power-Ups
+        </button>
+
+        <button class="tab-btn" onclick="switchTab('rebirth', this)">
+          🌀 Rebirth
+        </button>
+
+        <button class="tab-btn" onclick="switchTab('leaderboard', this)">
+          🌐 Online
+        </button>
+
+        <button class="tab-btn" onclick="switchTab('update', this)">
+          🚀 Update
+        </button>
+
+      </div>
+
+      <!-- MEMES -->
+      <div id="tab-memes" class="tab-content active">
+
+        <div class="restock-bar">
+          <span>🔄 Próximo Restock:</span>
+
+          <span id="restockTimer" style="color:var(--accent-gold)">
+            30s
+          </span>
+        </div>
+
+        <div id="adminDropMessage">
+          🧙‍♂️🔥 ¡DROP ESPECIAL DE ADMIN! Hay un MÍTICO garantizado en este stock.
+        </div>
+
+        <div class="shop-list-container" id="memeShopList"></div>
+
+      </div>
+
+      <!-- POWERUPS -->
+      <div id="tab-powerups" class="tab-content">
+
+        <div class="restock-bar">
+          <span>🔄 Restock Power-Ups:</span>
+
+          <span id="restockTimerPower" style="color:var(--accent-gold)">
+            60s
+          </span>
+        </div>
+
+        <div class="shop-list-container" id="powerShopList"></div>
+
+      </div>
+
+      <!-- REBIRTH -->
+      <div id="tab-rebirth" class="tab-content">
+
+        <div class="rebirth-box">
+
+          <h2 id="rebirthTitle">
+            🌀 REBIRTH 1 / 8
+          </h2>
+
+          <p id="rebirthDesc">
+            Reinicia tus monedas e inventario a cambio de un
+            <strong>NUEVO SLOT EN TU JARDÍN</strong> y un
+            <strong>MULTIPLICADOR PERMANENTE</strong>.
+          </p>
+
+          <div class="rebirth-requirements">
+
+            <div class="req-item">
+              <span>🪙 Monedas Actuales:</span>
+              <span id="reqCoins">0 / 250,000</span>
+            </div>
+
+            <div class="req-item">
+              <span>📊 Monedas Generadas Totales:</span>
+              <span id="reqLifetime">0 / 1,000,000</span>
+            </div>
+
+            <div class="req-item">
+              <span>🎁 Recompensa:</span>
+
+              <span id="reqReward" style="color:var(--accent-green)">
+                +1 Slot y x1.5 Monedas
+              </span>
+            </div>
+
+          </div>
+
+          <button
+            id="rebirthBtn"
+            class="rebirth-btn"
+            onclick="doRebirth()"
+          >
+            ¡Hacer Rebirth!
+          </button>
+
+        </div>
+
+      </div>
+
+      <!-- UPDATE -->
+      <div id="tab-update" class="tab-content">
+
+        <div class="update-panel-box">
+
+          <h2>
+            🚀 Update 1.0 — Internet Meltdown
+          </h2>
+
+          <p style="font-size:.8rem;color:#ddd;margin-bottom:5px;">
+            Tiempo restante para la gran expansión:
+          </p>
+
+          <div class="update-timer-display" id="updateCountdown">
+            COMING SOON
+          </div>
+
+          <div class="update-content-box">
+
+            <h4>
+              ✨ Contenido que se abrirá:
+            </h4>
+
+            <p
+              id="adminStatus"
+              style="color:#7FFFD4;font-size:.8rem;margin-bottom:8px;"
+            >
+              ⚡ ADMIN ABUSE · Domingos 21:50-22:00 · x5 stock · x2 dinero.
+            </p>
+
+            <ul>
+
+              <li>
+                🔥 <strong>Nueva Rareza:</strong>
+                ¡Nuevos memes exclusivos ultra potentes!
+              </li>
+
+              <li>
+                🌀 <strong>Nuevos Rebirths:</strong>
+                Niveles adicionales de evolución y multiplicadores locos.
+              </li>
+
+              <li>
+                🪴 <strong>Más Parcelas:</strong>
+                Expande tu jardín al siguiente nivel.
+              </li>
+
+              <li>
+                🎉 <strong>Admin Abuse:</strong>
+                ¡Confeti, x5 stock, x2 dinero y DROP MÍTICO al terminar!
+              </li>
+
+            </ul>
+
+            <div id="adminBadge" class="admin-badge">
+              ⚡ ADMIN ABUSE INACTIVO
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div id="tab-leaderboard" class="tab-content">
+
+        <h3 style="font-size:.95rem;color:var(--accent-gold);margin-bottom:10px;text-align:center;">
+          🏆 Clasificación Mundial
+        </h3>
+
+        <div class="name-box">
+
+          <input
+            type="text"
+            id="playerNameInput"
+            class="name-input"
+            placeholder="Tu Nombre de Jugador..."
+            maxlength="15"
+            autocomplete="off"
+          />
+
+          <button class="name-btn" onclick="updatePlayerName()">
+            Guardar
+          </button>
+
+        </div>
+
+        <div id="leaderboardStatus" class="leaderboard-status">
+          Cargando clasificación...
+        </div>
+
+        <div class="leaderboard-list" id="leaderboardList"></div>
+
+        <div class="my-rank-box" id="myRankBox">
+          Tu posición se está calculando...
+        </div>
+
+        <div style="text-align:center;">
+
+          <button
+            class="config-btn"
+            onclick="openFirebaseModal()"
+          >
+            ⚙️ Conectar ranking online
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CÓDIGOS -->
+  <div class="modal-overlay" id="codesModal">
+
+    <div
+      class="codes-modal-box"
+      style="border-color:var(--accent-purple);"
+    >
+
+      <h2 style="color:var(--accent-purple);">
+        🎁 Canjear Código
+      </h2>
+
+      <p style="font-size:.8rem;color:#aaa;margin-bottom:15px;">
+        ¡Introduce un código secreto para conseguir recompensas épicas!
+      </p>
+
+      <input
+        type="text"
+        id="codeInput"
+        class="codes-input"
+        placeholder="INTRODUCE CÓDIGO..."
+        autocomplete="off"
+      />
+
+      <div
+        id="codeFeedback"
+        style="font-size:.85rem;margin-bottom:15px;font-weight:bold;"
+      ></div>
+
+      <div class="modal-actions">
+
+        <button class="btn-save" onclick="redeemCode()">
+          Canjear
+        </button>
+
+        <button class="btn-cancel" onclick="closeCodesModal()">
+          Cerrar
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- RACHA -->
+  <div class="modal-overlay" id="streakModal">
+
+    <div
+      class="streak-modal-box"
+      style="border-color:var(--accent-gold);"
+    >
+
+      <h2 style="color:var(--accent-gold);">
+        🔥 Racha Diaria Brainrot
+      </h2>
+
+      <p style="font-size:.8rem;color:#aaa;">
+        ¡Entra cada día para reclamar recompensas cada vez mejores!
+      </p>
+
+      <div class="streak-grid" id="streakGrid"></div>
+
+      <button
+        id="claimStreakBtn"
+        class="claim-btn"
+        onclick="claimDailyStreak()"
+      >
+        ¡Reclamar Recompensa de Hoy!
+      </button>
+
+      <button
+        class="btn-cancel"
+        style="width:100%;margin-top:8px;"
+        onclick="closeStreakModal()"
+      >
+        Cerrar
+      </button>
+
+    </div>
+
+  </div>
+
+  <!-- ROBO -->
+  <div class="modal-overlay" id="stealAlert">
+
+    <div
+      class="alert-box"
+      style="border-color:var(--accent-pink);background:#1f0813;"
+    >
+
+      <h2 style="color:var(--accent-pink)">
+        🚨 ¡INTENTO DE ROBO! 🚨
+      </h2>
+
+      <div class="target-word" id="targetWord">
+        RIZZ
+      </div>
+
+      <input
+        type="text"
+        id="typeInput"
+        class="type-input"
+        autocomplete="off"
+        spellcheck="false"
+      />
+
+      <div class="timer-text" id="timerText">
+        ⏳ Tiempo restante: 7.0s
+      </div>
+
+      <div class="timer-bar">
+        <div class="timer-fill" id="timerFill"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- FIREBASE -->
+  <div class="modal-overlay" id="firebaseModal">
+
+    <div class="config-modal-box">
+
+      <h2>
+        ⚙️ Configurar Firebase
+      </h2>
+
+      <p style="font-size:.8rem;color:#aaa;margin-bottom:15px;">
+        Opcional: conecta Firebase para compartir la clasificación
+        con jugadores reales.
+      </p>
+
+      <div class="config-field">
+        <label>API Key</label>
+        <input type="text" id="fbApiKey" placeholder="AIzaSy..." />
+      </div>
+
+      <div class="config-field">
+        <label>Auth Domain</label>
+        <input
+          type="text"
+          id="fbAuthDomain"
+          placeholder="tu-proyecto.firebaseapp.com"
+        />
+      </div>
+
+      <div class="config-field">
+        <label>Project ID</label>
+        <input
+          type="text"
+          id="fbProjectId"
+          placeholder="tu-proyecto-id"
+        />
+      </div>
+
+      <div class="config-field">
+        <label>Storage Bucket</label>
+        <input
+          type="text"
+          id="fbStorageBucket"
+          placeholder="tu-proyecto.appspot.com"
+        />
+      </div>
+
+      <div class="config-field">
+        <label>Messaging Sender ID</label>
+        <input
+          type="text"
+          id="fbMessagingSenderId"
+          placeholder="123456789"
+        />
+      </div>
+
+      <div class="config-field">
+        <label>App ID</label>
+        <input
+          type="text"
+          id="fbAppId"
+          placeholder="1:123456789:web:abcdef"
+        />
+      </div>
+
+      <div class="modal-actions">
+
+        <button class="btn-save" onclick="saveFirebaseConfig()">
+          Conectar
+        </button>
+
+        <button class="btn-cancel" onclick="closeFirebaseModal()">
+          Cancelar
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="save-indicator" id="saveIndicator">
+    🌐 Sincronizado
+  </div>
+
+<script>
+"use strict";
+
+
+/* =========================================================
+   FIREBASE
+========================================================= */
+
+let db = null;
+let isFirebaseActive = false;
+
+function initFirebase() {
+  const savedConfig =
+    localStorage.getItem("brainrot_firebase_config");
+
+  if (!savedConfig || typeof firebase === "undefined") {
+    return;
+  }
+
+  try {
+    const config =
+      JSON.parse(savedConfig);
+
+    if (!config.apiKey || !config.projectId) {
+      return;
+    }
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(config);
+    }
+
+    db = firebase.firestore();
+    isFirebaseActive = true;
+
+  } catch (e) {
+    console.warn(
+      "Firebase no pudo iniciarse:",
+      e
+    );
+
+    db = null;
+    isFirebaseActive = false;
+  }
+}
+
+initFirebase();
+
+
+/* =========================================================
+   ADMIN ABUSE
+   DOMINGO 21:50 - 22:00
+========================================================= */
+
+function isAdminAbuseActive() {
+  const now = new Date();
+
+  if (now.getDay() !== 0) {
+    return false;
+  }
+
+  const minutes =
+    now.getHours() * 60 +
+    now.getMinutes();
+
+  return (
+    minutes >= 21 * 60 + 50 &&
+    minutes < 22 * 60
+  );
+}
+
+function getStockLuckMultiplier() {
+  return isAdminAbuseActive()
+    ? 5
+    : 1;
+}
+
+function getMoneyMultiplier() {
+  return isAdminAbuseActive()
+    ? 2
+    : 1;
+}
+
+
+/* =========================================================
+   ESTADO DEL ADMIN ABUSE
+========================================================= */
+
+/*
+  Guarda si el jugador ya estaba dentro del Admin Abuse.
+
+  Esto permite detectar exactamente la transición:
+
+  ACTIVO -> INACTIVO
+
+  y lanzar el drop mítico de final de evento.
+*/
+
+let previousAdminAbuseState =
+  isAdminAbuseActive();
+
+let adminConfettiInterval = null;
+
+let adminGuaranteedMythicPending = false;
+
+let adminEndDropClaimKey =
+  localStorage.getItem(
+    "brainrot_admin_end_drop_key"
+  ) || "";
+
+
+/*
+  Identificador de una sesión concreta del Admin Abuse.
+
+  Ejemplo:
+
+  2026-09-27-2150
+
+  Así no se puede regalar el Mítico varias veces
+  simplemente actualizando la página.
+*/
+function getAdminEventKey(date = new Date()) {
+  if (date.getDay() !== 0) {
+    return "";
+  }
+
+  const minutes =
+    date.getHours() * 60 +
+    date.getMinutes();
+
+  if (
+    minutes < 21 * 60 + 50 ||
+    minutes >= 22 * 60
+  ) {
+    return "";
+  }
+
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+    "2150"
+  ].join("-");
+}
+
+
+/* =========================================================
+   CONFETI
+========================================================= */
+
+function createConfettiPiece() {
+  const container =
+    document.getElementById(
+      "confettiContainer"
+    );
+
+  if (!container) {
+    return;
+  }
+
+  const piece =
+    document.createElement("div");
+
+  piece.className =
+    "confetti-piece";
+
+  const colors = [
+    "#ff0055",
+    "#ffcc00",
+    "#00ffaa",
+    "#00d2ff",
+    "#a855f7",
+    "#ffffff",
+    "#ff5500",
+    "#ff304f"
+  ];
+
+  piece.style.background =
+    colors[
+      Math.floor(
+        Math.random() * colors.length
+      )
+    ];
+
+  piece.style.left =
+    `${Math.random() * 100}vw`;
+
+  piece.style.width =
+    `${6 + Math.random() * 8}px`;
+
+  piece.style.height =
+    `${9 + Math.random() * 13}px`;
+
+  piece.style.borderRadius =
+    Math.random() > .5
+      ? "50%"
+      : "2px";
+
+  const duration =
+    3.5 + Math.random() * 4.5;
+
+  piece.style.animationDuration =
+    `${duration}s`;
+
+  piece.style.animationDelay =
+    `${Math.random() * .25}s`;
+
+  piece.style.setProperty(
+    "--sway1",
+    `${-100 + Math.random() * 200}px`
+  );
+
+  piece.style.setProperty(
+    "--sway2",
+    `${-150 + Math.random() * 300}px`
+  );
+
+  piece.style.setProperty(
+    "--sway3",
+    `${-120 + Math.random() * 240}px`
+  );
+
+  piece.style.setProperty(
+    "--sway4",
+    `${-200 + Math.random() * 400}px`
+  );
+
+  container.appendChild(piece);
+
+  setTimeout(() => {
+    piece.remove();
+  }, (duration + .5) * 1000);
+}
+
+function startAdminConfetti() {
+  if (adminConfettiInterval !== null) {
+    return;
+  }
+
+  /*
+    Primera explosión de confeti.
+  */
+  for (let i = 0; i < 35; i++) {
+    createConfettiPiece();
+  }
+
+  /*
+    Después sigue cayendo durante todo el evento.
+  */
+  adminConfettiInterval =
+    setInterval(() => {
+      if (!isAdminAbuseActive()) {
+        stopAdminConfetti();
+        return;
+      }
+
+      for (let i = 0; i < 5; i++) {
+        createConfettiPiece();
+      }
+    }, 180);
+}
+
+function stopAdminConfetti() {
+  if (adminConfettiInterval !== null) {
+    clearInterval(
+      adminConfettiInterval
+    );
+
+    adminConfettiInterval = null;
+  }
+
+  const container =
+    document.getElementById(
+      "confettiContainer"
+    );
+
+  if (container) {
+    container.innerHTML = "";
+  }
+}
+
+
+/* =========================================================
+   FINAL DEL ADMIN ABUSE
+========================================================= */
+
+function triggerAdminAbuseEndDrop() {
+  const now =
+    new Date();
+
+  /*
+    Solo puede ocurrir después de un domingo de Admin Abuse.
+  */
+  const eventKey =
+    [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+      "2150"
+    ].join("-");
+
+  /*
+    Evita repetir el drop en cada actualización.
+  */
+  if (
+    adminEndDropClaimKey === eventKey
+  ) {
+    return;
+  }
+
+  adminEndDropClaimKey =
+    eventKey;
+
+  localStorage.setItem(
+    "brainrot_admin_end_drop_key",
+    eventKey
+  );
+
+  adminGuaranteedMythicPending = true;
+
+  /*
+    Hace un restock inmediatamente y garantiza
+    que uno de los Míticos tenga stock.
+  */
+  restockShop(true);
+
+  /*
+    Feedback visual.
+  */
+  const message =
+    document.getElementById(
+      "adminDropMessage"
+    );
+
+  if (message) {
+    message.style.display = "block";
+  }
+
+  playSound("rebirth");
+
+  /*
+    Pequeña explosión final de confeti.
+  */
+  for (let i = 0; i < 90; i++) {
+    setTimeout(() => {
+      createConfettiPiece();
+    }, i * 12);
+  }
+
+  setTimeout(() => {
+    const container =
+      document.getElementById(
+        "confettiContainer"
+      );
+
+    if (container) {
+      container.innerHTML = "";
+    }
+  }, 5000);
+
+  updateUI();
+}
+
+
+/* =========================================================
+   ACTUALIZAR ESTADO DEL ADMIN ABUSE
+========================================================= */
+
+function checkAdminAbuseTransition() {
+  const active =
+    isAdminAbuseActive();
+
+  /*
+    Si acaba de empezar.
+  */
+  if (
+    active &&
+    !previousAdminAbuseState
+  ) {
+    startAdminConfetti();
+    adminGuaranteedMythicPending = false;
+
+    const message =
+      document.getElementById(
+        "adminDropMessage"
+      );
+
+    if (message) {
+      message.style.display = "none";
+    }
+
+    /*
+      Hacemos un restock inmediato al comenzar
+      para que el x5 stock se note desde el principio.
+    */
+    restockShop();
+
+    playSound("buy");
+  }
+
+  /*
+    Si acaba de terminar.
+  */
+  if (
+    !active &&
+    previousAdminAbuseState
+  ) {
+    stopAdminConfetti();
+
+    triggerAdminAbuseEndDrop();
+  }
+
+  /*
+    Mientras esté activo, asegúrate de que el confeti siga.
+  */
+  if (active) {
+    startAdminConfetti();
+  }
+
+  previousAdminAbuseState =
+    active;
+}
+
+
+/* =========================================================
+   FIREBASE MODAL
+========================================================= */
+
+function openFirebaseModal() {
+  playSound("select");
+
+  const savedConfig =
+    localStorage.getItem(
+      "brainrot_firebase_config"
+    );
+
+  if (savedConfig) {
+    try {
+      const c =
+        JSON.parse(savedConfig);
+
+      document.getElementById(
+        "fbApiKey"
+      ).value =
+        c.apiKey || "";
+
+      document.getElementById(
+        "fbAuthDomain"
+      ).value =
+        c.authDomain || "";
+
+      document.getElementById(
+        "fbProjectId"
+      ).value =
+        c.projectId || "";
+
+      document.getElementById(
+        "fbStorageBucket"
+      ).value =
+        c.storageBucket || "";
+
+      document.getElementById(
+        "fbMessagingSenderId"
+      ).value =
+        c.messagingSenderId || "";
+
+      document.getElementById(
+        "fbAppId"
+      ).value =
+        c.appId || "";
+
+    } catch (_) {}
+  }
+
+  document.getElementById(
+    "firebaseModal"
+  ).style.display = "flex";
+}
+
+function closeFirebaseModal() {
+  document.getElementById(
+    "firebaseModal"
+  ).style.display = "none";
+}
+
+function saveFirebaseConfig() {
+  const config = {
+    apiKey:
+      document.getElementById(
+        "fbApiKey"
+      ).value.trim(),
+
+    authDomain:
+      document.getElementById(
+        "fbAuthDomain"
+      ).value.trim(),
+
+    projectId:
+      document.getElementById(
+        "fbProjectId"
+      ).value.trim(),
+
+    storageBucket:
+      document.getElementById(
+        "fbStorageBucket"
+      ).value.trim(),
+
+    messagingSenderId:
+      document.getElementById(
+        "fbMessagingSenderId"
+      ).value.trim(),
+
+    appId:
+      document.getElementById(
+        "fbAppId"
+      ).value.trim()
+  };
+
+  if (
+    !config.apiKey ||
+    !config.projectId
+  ) {
+    alert(
+      "⚠️ Debes rellenar al menos la API Key y el Project ID."
+    );
+
+    return;
+  }
+
+  localStorage.setItem(
+    "brainrot_firebase_config",
+    JSON.stringify(config)
+  );
+
+  closeFirebaseModal();
+
+  playSound("buy");
+
+  location.reload();
+}
+
+
+/* =========================================================
+   AUDIO SEGURO
+========================================================= */
+
+const AudioContextClass =
+  window.AudioContext ||
+  window.webkitAudioContext;
+
+const audioCtx =
+  AudioContextClass
+    ? new AudioContextClass()
+    : null;
+
+function playSound(type) {
+  if (!audioCtx) {
+    return;
+  }
+
+  try {
+    if (
+      audioCtx.state === "suspended"
+    ) {
+      audioCtx.resume();
+    }
+
+    const now =
+      audioCtx.currentTime;
+
+    if (type === "buy") {
+
+      const osc =
+        audioCtx.createOscillator();
+
+      const gain =
+        audioCtx.createGain();
+
+      osc.type = "sine";
+
+      osc.frequency.setValueAtTime(
+        987.77,
+        now
+      );
+
+      osc.frequency.setValueAtTime(
+        1318.51,
+        now + .08
+      );
+
+      gain.gain.setValueAtTime(
+        .15,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        .001,
+        now + .3
+      );
+
+      osc.connect(gain);
+      gain.connect(
+        audioCtx.destination
+      );
+
+      osc.start(now);
+      osc.stop(now + .3);
+    }
+
+    else if (type === "plant") {
+
+      const osc =
+        audioCtx.createOscillator();
+
+      const gain =
+        audioCtx.createGain();
+
+      osc.type = "triangle";
+
+      osc.frequency.setValueAtTime(
+        150,
+        now
+      );
+
+      osc.frequency.exponentialRampToValueAtTime(
+        400,
+        now + .08
+      );
+
+      gain.gain.setValueAtTime(
+        .2,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        .001,
+        now + .1
+      );
+
+      osc.connect(gain);
+      gain.connect(
+        audioCtx.destination
+      );
+
+      osc.start(now);
+      osc.stop(now + .1);
+    }
+
+    else if (type === "select") {
+
+      const osc =
+        audioCtx.createOscillator();
+
+      const gain =
+        audioCtx.createGain();
+
+      osc.type = "sine";
+
+      osc.frequency.setValueAtTime(
+        600,
+        now
+      );
+
+      gain.gain.setValueAtTime(
+        .05,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        .001,
+        now + .05
+      );
+
+      osc.connect(gain);
+      gain.connect(
+        audioCtx.destination
+      );
+
+      osc.start(now);
+      osc.stop(now + .05);
+    }
+
+    else if (type === "alarm") {
+
+      const osc =
+        audioCtx.createOscillator();
+
+      const gain =
+        audioCtx.createGain();
+
+      osc.type = "sawtooth";
+
+      osc.frequency.setValueAtTime(
+        800,
+        now
+      );
+
+      osc.frequency.linearRampToValueAtTime(
+        400,
+        now + .2
+      );
+
+      gain.gain.setValueAtTime(
+        .1,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        .001,
+        now + .25
+      );
+
+      osc.connect(gain);
+      gain.connect(
+        audioCtx.destination
+      );
+
+      osc.start(now);
+      osc.stop(now + .25);
+    }
+
+    else if (type === "defend") {
+
+      [
+        523.25,
+        659.25,
+        783.99
+      ].forEach(
+        (freq, i) => {
+
+          const osc =
+            audioCtx.createOscillator();
+
+          const gain =
+            audioCtx.createGain();
+
+          const start =
+            now + i * .05;
+
+          osc.type = "sine";
+
+          osc.frequency.setValueAtTime(
+            freq,
+            start
+          );
+
+          gain.gain.setValueAtTime(
+            .1,
+            start
+          );
+
+          gain.gain.exponentialRampToValueAtTime(
+            .001,
+            start + .2
+          );
+
+          osc.connect(gain);
+          gain.connect(
+            audioCtx.destination
+          );
+
+          osc.start(start);
+          osc.stop(start + .2);
+        }
+      );
+    }
+
+    else if (type === "fail") {
+
+      const osc =
+        audioCtx.createOscillator();
+
+      const gain =
+        audioCtx.createGain();
+
+      osc.type = "sawtooth";
+
+      osc.frequency.setValueAtTime(
+        200,
+        now
+      );
+
+      osc.frequency.linearRampToValueAtTime(
+        60,
+        now + .3
+      );
+
+      gain.gain.setValueAtTime(
+        .2,
+        now
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        .001,
+        now + .3
+      );
+
+      osc.connect(gain);
+      gain.connect(
+        audioCtx.destination
+      );
+
+      osc.start(now);
+      osc.stop(now + .3);
+    }
+
+    else if (type === "rebirth") {
+
+      [
+        261.63,
+        329.63,
+        392,
+        523.25,
+        659.25,
+        783.99,
+        1046.5
+      ].forEach(
+        (freq, i) => {
+
+          const osc =
+            audioCtx.createOscillator();
+
+          const gain =
+            audioCtx.createGain();
+
+          const start =
+            now + i * .08;
+
+          osc.type = "triangle";
+
+          osc.frequency.setValueAtTime(
+            freq,
+            start
+          );
+
+          gain.gain.setValueAtTime(
+            .15,
+            start
+          );
+
+          gain.gain.exponentialRampToValueAtTime(
+            .001,
+            start + .4
+          );
+
+          osc.connect(gain);
+          gain.connect(
+            audioCtx.destination
+          );
+
+          osc.start(start);
+          osc.stop(start + .4);
+        }
+      );
+    }
+
+  } catch (_) {}
+}
+
+
+/* =========================================================
+   ESTADO
+========================================================= */
+
+const MIN_STARTING_COINS = 100;
+const MAX_REBIRTHS = 8;
+
+let playerId =
+  localStorage.getItem(
+    "brainrot_player_id"
+  ) ||
+  "usr_" +
+    Math.random()
+      .toString(36)
+      .substring(2, 9);
+
+localStorage.setItem(
+  "brainrot_player_id",
+  playerId
+);
+
+let playerName =
+  localStorage.getItem(
+    "brainrot_player_name"
+  ) ||
+  "Jugador_" +
+    Math.floor(
+      Math.random() * 8999 + 1000
+    );
+
+let coins = 100;
+let lifetimeCoins = 100;
+let shields = 0;
+
+let boostExpiresAt = 0;
+let moneyStormExpiresAt = 0;
+
+let shortWordsActive = 0;
+
+let rebirths = 0;
+let maxPlots = 4;
+
+let redeemedCodes = [];
+let streakDay = 1;
+let lastClaimDate = "";
+
+let inventory = [];
+let selectedInvIndex = null;
+let garden = [
+  null,
+  null,
+  null,
+  null
+];
+
+let shopMemes = [];
+let shopPowerups = [];
+
+let restockTimerVal = 30;
+let restockTimerPowerVal = 60;
+
+
+/* =========================================================
+   REBIRTHS
+========================================================= */
+
+const rebirthConfigs = [
+  {
+    level: 1,
+    cost: 250000,
+    lifetimeReq: 1000000,
+    bonusMultiplier: 1.5,
+    addPlots: 1
+  },
+  {
+    level: 2,
+    cost: 2500000,
+    lifetimeReq: 10000000,
+    bonusMultiplier: 2.2,
+    addPlots: 1
+  },
+  {
+    level: 3,
+    cost: 25000000,
+    lifetimeReq: 100000000,
+    bonusMultiplier: 3.5,
+    addPlots: 1
+  },
+  {
+    level: 4,
+    cost: 250000000,
+    lifetimeReq: 1000000000,
+    bonusMultiplier: 5,
+    addPlots: 1
+  },
+  {
+    level: 5,
+    cost: 2500000000,
+    lifetimeReq: 10000000000,
+    bonusMultiplier: 10,
+    addPlots: 2
+  },
+  {
+    level: 6,
+    cost: 8000000000,
+    lifetimeReq: 30000000000,
+    bonusMultiplier: 15,
+    addPlots: 1
+  },
+  {
+    level: 7,
+    cost: 75000000000,
+    lifetimeReq: 250000000000,
+    bonusMultiplier: 22,
+    addPlots: 0
+  },
+  {
+    level: 8,
+    cost: 750000000000,
+    lifetimeReq: 2500000000000,
+    bonusMultiplier: 35,
+    addPlots: 2
+  }
+];
+
+
+/* =========================================================
+   MEMES
+========================================================= */
+
+const allMemes = [
+  {
+    id: "gigachad",
+    name: "Gigachad",
+    icon: "🗿",
+    cps: 2,
+    price: 30,
+    chance: .7,
+    rarity: "Común",
+    color: "var(--rarity-common)"
+  },
+  {
+    id: "mewing",
+    name: "Mewing Cat",
+    icon: "😼",
+    cps: 8,
+    price: 90,
+    chance: .6,
+    rarity: "Común",
+    color: "var(--rarity-common)"
+  },
+  {
+    id: "grimace",
+    name: "Grimace Shake",
+    icon: "🥛",
+    cps: 15,
+    price: 200,
+    chance: .5,
+    rarity: "Común",
+    color: "var(--rarity-common)"
+  },
+
+  {
+    id: "sigma",
+    name: "Sigmaphone",
+    icon: "🍷",
+    cps: 35,
+    price: 450,
+    chance: .35,
+    rarity: "Raro",
+    color: "var(--rarity-rare)"
+  },
+  {
+    id: "pizza",
+    name: "Pizza Tower",
+    icon: "🍕",
+    cps: 70,
+    price: 900,
+    chance: .3,
+    rarity: "Raro",
+    color: "var(--rarity-rare)"
+  },
+  {
+    id: "skibidi",
+    name: "Skibidi Toilet",
+    icon: "🤖",
+    cps: 150,
+    price: 2000,
+    chance: .25,
+    rarity: "Raro",
+    color: "var(--rarity-rare)"
+  },
+
+  {
+    id: "ohio",
+    name: "Ohio King",
+    icon: "👑",
+    cps: 400,
+    price: 5000,
+    chance: .15,
+    rarity: "Épico",
+    color: "var(--rarity-epic)"
+  },
+  {
+    id: "gyatt",
+    name: "Gyatt Dragon",
+    icon: "🔥",
+    cps: 1200,
+    price: 15000,
+    chance: .1,
+    rarity: "Épico",
+    color: "var(--rarity-epic)"
+  },
+
+  {
+    id: "cosmic",
+    name: "Cosmic Rizz",
+    icon: "🌌",
+    cps: 4000,
+    price: 50000,
+    chance: .05,
+    rarity: "Legendario",
+    color: "var(--rarity-legendary)"
+  },
+  {
+    id: "elprimo",
+    name: "El Primo Gym",
+    icon: "🥊",
+    cps: 10000,
+    price: 120000,
+    chance: .03,
+    rarity: "Legendario",
+    color: "var(--rarity-legendary)"
+  },
+  {
+    id: "chadgold",
+    name: "Giga Chad Gold",
+    icon: "🔱",
+    cps: 25000,
+    price: 300000,
+    chance: .02,
+    rarity: "Legendario",
+    color: "var(--rarity-legendary)"
+  },
+
+  {
+    id: "fanum",
+    name: "Fanum Tax God",
+    icon: "🍔",
+    cps: 75000,
+    price: 1000000,
+    chance: .008,
+    rarity: "Mítico",
+    color: "var(--rarity-mythic)"
+  },
+  {
+    id: "sakading_apple",
+    name: "Sakading Apple",
+    icon: "🍎",
+    cps: 150000,
+    price: 2500000,
+    chance: .004,
+    rarity: "Mítico",
+    color: "var(--rarity-mythic)"
+  },
+  {
+    id: "brainrot_supreme",
+    name: "Brainrot Overlord",
+    icon: "🧠",
+    cps: 250000,
+    price: 5000000,
+    chance: .002,
+    rarity: "Mítico",
+    color: "var(--rarity-mythic)"
+  },
+
+  {
+    id: "duck_exe",
+    name: "Duck.exe",
+    icon: "🦆",
+    cps: 1000000000,
+    price: 4000000000,
+    chance: .00001,
+    rarity: "Exótico",
+    color: "var(--rarity-exotic)"
+  },
+
+  {
+    id: "pulpo_misterioso",
+    name: "Pulpo Misterioso",
+    icon: "🐙",
+    cps: 625000000,
+    price: 900000000,
+    chance: .00008,
+    rarity: "Secreto",
+    color: "var(--rarity-secret)"
+  },
+  {
+    id: "shadow_ape",
+    name: "Shadow Ape",
+    icon: "🦍",
+    cps: 700000000,
+    price: 1800000000,
+    chance: .00004,
+    rarity: "Secreto",
+    color: "var(--rarity-secret)"
+  },
+  {
+    id: "gigante_supremo",
+    name: "Gigante Supremo",
+    icon: "🦾",
+    cps: 750000000,
+    price: 3000000000,
+    chance: .00002,
+    rarity: "Secreto",
+    color: "var(--rarity-secret)"
+  }
+];
+
+
+/* =========================================================
+   POWERUPS
+========================================================= */
+
+const basePowerups = [
+  {
+    id: "shield",
+    name: "Escudo Anti-Robo",
+    icon: "🛡️",
+    desc: "Protege de 1 intento de robo",
+    price: 500,
+    chance: .8,
+    type: "shield"
+  },
+  {
+    id: "boost",
+    name: "Bebida Energética",
+    icon: "⚡",
+    desc: "x2 Monedas por 30 seg",
+    price: 1200,
+    chance: .5,
+    type: "boost"
+  },
+  {
+    id: "easywords",
+    name: "Dicc. Brainrot",
+    icon: "📖",
+    desc: "Palabras de robo más cortas",
+    price: 800,
+    chance: .6,
+    type: "shortWords"
+  },
+  {
+    id: "luckydice",
+    name: "Lucky Dice",
+    icon: "🎲",
+    desc: "Rerollea el stock al instante",
+    price: 8000,
+    chance: .45,
+    type: "luckydice"
+  },
+  {
+    id: "moneystorm",
+    name: "Money Storm",
+    icon: "💥",
+    desc: "x5 monedas durante 30 seg",
+    price: 5000000,
+    chance: .08,
+    type: "moneystorm"
+  }
+];
+
+
+/* =========================================================
+   CÓDIGOS
+========================================================= */
+
+const validCodes = {
+  "HOLA ME LLAMO PAU": {
+    type: "pauSpecial",
+    desc: "🌀 +4 Rebirths, +4 Parcelas y un ejemplar de cada meme"
+  },
+
+  "BRAINROT100": {
+    type: "coins",
+    value: 500,
+    desc: "🪙 +500 Monedas"
+  },
+
+  "SKIBIDI": {
+    type: "meme",
+    memeId: "skibidi",
+    desc: "🤖 Skibidi Toilet gratis"
+  },
+
+  "GIGACHAD": {
+    type: "coins",
+    value: 2000,
+    desc: "🪙 +2,000 Monedas"
+  },
+
+  "SECRET2026": {
+    type: "meme",
+    memeId: "pulpo_misterioso",
+    desc: "🐙 Pulpo Misterioso Secreto"
+  },
+
+  "RIZZLER": {
+    type: "shield",
+    value: 3,
+    desc: "🛡️ +3 Escudos Anti-Robo"
+  }
+};
+
+
+/* =========================================================
+   RACHA
+========================================================= */
+
+const streakRewards = [
+  {
+    day: 1,
+    type: "coins",
+    val: 100,
+    icon: "🪙",
+    label: "100 Monedas"
+  },
+  {
+    day: 2,
+    type: "coins",
+    val: 300,
+    icon: "🪙",
+    label: "300 Monedas"
+  },
+  {
+    day: 3,
+    type: "meme",
+    memeId: "sigma",
+    icon: "🍷",
+    label: "Sigmaphone"
+  },
+  {
+    day: 4,
+    type: "coins",
+    val: 1000,
+    icon: "🪙",
+    label: "1,000 Monedas"
+  },
+  {
+    day: 5,
+    type: "shield",
+    val: 2,
+    icon: "🛡️",
+    label: "2 Escudos"
+  },
+  {
+    day: 6,
+    type: "coins",
+    val: 5000,
+    icon: "🪙",
+    label: "5,000 Monedas"
+  },
+  {
+    day: 7,
+    type: "meme",
+    memeId: "ohio",
+    icon: "👑",
+    label: "Ohio King"
+  },
+  {
+    day: 8,
+    type: "meme",
+    memeId: "pulpo_misterioso",
+    icon: "🐙",
+    label: "¡Pulpo Secreto!"
+  }
+];
+
+
+/* =========================================================
+   ROBO
+========================================================= */
+
+const wordsNormal = [
+  "RIZZ",
+  "GYATT",
+  "OHIO",
+  "SIGMA",
+  "SKIBIDI",
+  "MEWING",
+  "GIGACHAD",
+  "FANUM",
+  "TAX",
+  "MOMENT",
+  "BRAINROT",
+  "GOAT",
+  "AMOGUS",
+  "SUS"
+];
+
+const wordsShort = [
+  "RIZZ",
+  "GYATT",
+  "OHIO",
+  "SIGMA",
+  "SUS",
+  "TAX"
+];
+
+let stealTimer = null;
+let stealTimeLeft = 7;
+let currentWord = "";
+let currentStealPlots = [];
+
+
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+function clampNumber(
+  value,
+  min,
+  max
+) {
+  const n =
+    Number(value);
+
+  if (!Number.isFinite(n)) {
+    return min;
+  }
+
+  return Math.min(
+    max,
+    Math.max(min, n)
+  );
+}
+
+function normalizePlayerName(name) {
+  const clean =
+    String(name || "")
+      .replace(/[<>]/g, "")
+      .trim()
+      .slice(0, 15);
+
+  return (
+    clean ||
+    "Jugador_" +
+      Math.floor(
+        Math.random() * 8999 + 1000
+      )
+  );
+}
+
+function getLocalDateKey(
+  date = new Date()
+) {
+  return [
+    date.getFullYear(),
+    String(
+      date.getMonth() + 1
+    ).padStart(2, "0"),
+    String(
+      date.getDate()
+    ).padStart(2, "0")
+  ].join("-");
+}
+
+function getPreviousDateKey(
+  date = new Date()
+) {
+  const d =
+    new Date(date);
+
+  d.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  d.setDate(
+    d.getDate() - 1
+  );
+
+  return getLocalDateKey(d);
+}
+
+function formatNumber(value) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+
+  return Math.floor(value)
+    .toLocaleString("es-ES");
+}
+
+function canAfford(price) {
+  return coins >= price;
+}
+
+function ensureGardenSize() {
+  if (!Array.isArray(garden)) {
+    garden = [];
+  }
+
+  while (
+    garden.length <
+    maxPlots
+  ) {
+    garden.push(null);
+  }
+
+  if (
+    garden.length >
+    maxPlots
+  ) {
+    garden.length =
+      maxPlots;
+  }
+}
+
+function getTemporaryMoneyMultiplier() {
+  const now =
+    Date.now();
+
+  let multiplier = 1;
+
+  if (
+    now <
+    boostExpiresAt
+  ) {
+    multiplier *= 2;
+  }
+
+  if (
+    now <
+    moneyStormExpiresAt
+  ) {
+    multiplier *= 5;
+  }
+
+  return multiplier;
+}
+
+
+/* =========================================================
+   CARGAR PARTIDA
+========================================================= */
+
+function loadGame() {
+  const saved =
+    localStorage.getItem(
+      "brainrot_save_data"
+    );
+
+  if (saved) {
+    try {
+      const data =
+        JSON.parse(saved);
+
+      coins =
+        Math.max(
+          0,
+          Number(data.coins) || 100
+        );
+
+      lifetimeCoins =
+        Math.max(
+          100,
+          Number(data.lifetimeCoins) ||
+            coins
+        );
+
+      shields =
+        Math.max(
+          0,
+          Number(data.shields) || 0
+        );
+
+      rebirths =
+        clampNumber(
+          Number(data.rebirths) || 0,
+          0,
+          MAX_REBIRTHS
+        );
+
+      maxPlots =
+        Math.max(
+          4,
+          Number(data.maxPlots) || 4
+        );
+
+      inventory =
+        Array.isArray(data.inventory)
+          ? data.inventory
+          : [];
+
+      garden =
+        Array.isArray(data.garden)
+          ? data.garden
+          : [];
+
+      redeemedCodes =
+        Array.isArray(
+          data.redeemedCodes
+        )
+          ? data.redeemedCodes
+          : [];
+
+      streakDay =
+        clampNumber(
+          Number(data.streakDay) || 1,
+          1,
+          streakRewards.length
+        );
+
+      lastClaimDate =
+        typeof data.lastClaimDate ===
+        "string"
+          ? data.lastClaimDate
+          : "";
+
+      boostExpiresAt =
+        Number(
+          data.boostExpiresAt
+        ) || 0;
+
+      moneyStormExpiresAt =
+        Number(
+          data.moneyStormExpiresAt
+        ) || 0;
+
+      shortWordsActive =
+        Math.max(
+          0,
+          Number(
+            data.shortWordsActive
+          ) || 0
+        );
+
+      if (
+        typeof data.playerName ===
+        "string"
+      ) {
+        playerName =
+          normalizePlayerName(
+            data.playerName
+          );
+
+        localStorage.setItem(
+          "brainrot_player_name",
+          playerName
+        );
+      }
+
+    } catch (e) {
+      console.error(
+        "Error al cargar partida:",
+        e
+      );
+    }
+  }
+
+  ensureGardenSize();
+
+  normalizeStreak();
+
+  document.getElementById(
+    "playerNameInput"
+  ).value =
+    playerName;
+
+  restockShop();
+  restockPowerupsShop();
+
+  updateUI();
+
+  fetchOnlineLeaderboard();
+
+  /*
+    Si hemos entrado justo después del Admin Abuse
+    y todavía no se ha reclamado el drop de esa sesión,
+    se entrega ahora.
+  */
+  const now =
+    new Date();
+
+  if (
+    now.getDay() === 0
+  ) {
+    const minutes =
+      now.getHours() * 60 +
+      now.getMinutes();
+
+    if (
+      minutes >= 22 * 60
+    ) {
+      const eventKey =
+        [
+          now.getFullYear(),
+          String(
+            now.getMonth() + 1
+          ).padStart(2, "0"),
+          String(
+            now.getDate()
+          ).padStart(2, "0"),
+          "2150"
+        ].join("-");
+
+      if (
+        adminEndDropClaimKey !==
+        eventKey
+      ) {
+        adminGuaranteedMythicPending =
+          true;
+
+        adminEndDropClaimKey =
+          eventKey;
+
+        localStorage.setItem(
+          "brainrot_admin_end_drop_key",
+          eventKey
+        );
+
+        restockShop(true);
+
+        const message =
+          document.getElementById(
+            "adminDropMessage"
+          );
+
+        if (message) {
+          message.style.display =
+            "block";
+        }
+      }
+    }
+  }
+}
+
+
+/* =========================================================
+   GUARDAR PARTIDA
+========================================================= */
+
+function saveGame() {
+  ensureGardenSize();
+
+  const data = {
+    coins:
+      Math.max(
+        0,
+        coins
+      ),
+
+    lifetimeCoins:
+      Math.max(
+        100,
+        lifetimeCoins
+      ),
+
+    shields:
+      Math.max(
+        0,
+        shields
+      ),
+
+    rebirths:
+      clampNumber(
+        rebirths,
+        0,
+        MAX_REBIRTHS
+      ),
+
+    maxPlots:
+      Math.max(
+        4,
+        maxPlots
+      ),
+
+    inventory,
+    garden,
+    redeemedCodes,
+    streakDay,
+    lastClaimDate,
+    boostExpiresAt,
+    moneyStormExpiresAt,
+    shortWordsActive,
+    playerName
+  };
+
+  localStorage.setItem(
+    "brainrot_save_data",
+    JSON.stringify(data)
+  );
+
+  syncOnlineLeaderboard();
+}
+
+
+/* =========================================================
+   CÓDIGOS
+========================================================= */
+
+function openCodesModal() {
+  playSound("select");
+
+  document.getElementById(
+    "codeInput"
+  ).value = "";
+
+  document.getElementById(
+    "codeFeedback"
+  ).innerText = "";
+
+  document.getElementById(
+    "codesModal"
+  ).style.display = "flex";
+
+  setTimeout(() => {
+    document.getElementById(
+      "codeInput"
+    ).focus();
+  }, 50);
+}
+
+function closeCodesModal() {
+  document.getElementById(
+    "codesModal"
+  ).style.display = "none";
+}
+
+function redeemCode() {
+  const input =
+    document.getElementById(
+      "codeInput"
+    );
+
+  const feedback =
+    document.getElementById(
+      "codeFeedback"
+    );
+
+  const code =
+    input.value
+      .trim()
+      .toUpperCase();
+
+  if (!code) {
+    feedback.style.color =
+      "var(--accent-pink)";
+
+    feedback.innerText =
+      "⚠️ Introduce un código válido.";
+
+    return;
+  }
+
+  if (
+    redeemedCodes.includes(code)
+  ) {
+    playSound("fail");
+
+    feedback.style.color =
+      "var(--accent-pink)";
+
+    feedback.innerText =
+      "❌ Este código ya ha sido canjeado.";
+
+    return;
+  }
+
+  const reward =
+    validCodes[code];
+
+  if (!reward) {
+    playSound("fail");
+
+    feedback.style.color =
+      "var(--accent-pink)";
+
+    feedback.innerText =
+      "❌ Código incorrecto.";
+
+    return;
+  }
+
+  let success = false;
+
+  if (
+    reward.type === "coins"
+  ) {
+    coins += reward.value;
+    lifetimeCoins += reward.value;
+    success = true;
+  }
+
+  else if (
+    reward.type === "shield"
+  ) {
+    shields += reward.value;
+    success = true;
+  }
+
+  else if (
+    reward.type === "meme"
+  ) {
+    const template =
+      allMemes.find(
+        m =>
+          m.id ===
+          reward.memeId
+      );
+
+    if (template) {
+      inventory.push({
+        ...template
+      });
+
+      success = true;
+    }
+  }
+
+  else if (
+    reward.type ===
+    "pauSpecial"
+  ) {
+    rebirths =
+      Math.min(
+        MAX_REBIRTHS,
+        rebirths + 4
+      );
+
+    maxPlots += 4;
+
+    allMemes.forEach(
+      template => {
+        inventory.push({
+          ...template
+        });
+      }
+    );
+
+    ensureGardenSize();
+
+    success = true;
+  }
+
+  if (!success) {
+    return;
+  }
+
+  redeemedCodes.push(code);
+
+  playSound("rebirth");
+
+  feedback.style.color =
+    "var(--accent-green)";
+
+  feedback.innerText =
+    `🎉 ¡Éxito! ${reward.desc}`;
+
+  input.value = "";
+
+  updateUI();
+  saveGame();
+}
+
+
+/* =========================================================
+   RACHA
+========================================================= */
+
+function normalizeStreak() {
+  const today =
+    getLocalDateKey();
+
+  if (!lastClaimDate) {
+    streakDay =
+      clampNumber(
+        streakDay,
+        1,
+        streakRewards.length
+      );
+
+    return;
+  }
+
+  if (
+    lastClaimDate ===
+    today
+  ) {
+    return;
+  }
+
+  const yesterday =
+    getPreviousDateKey();
+
+  if (
+    lastClaimDate !==
+    yesterday
+  ) {
+    streakDay = 1;
+  }
+}
+
+function openStreakModal() {
+  playSound("select");
+
+  normalizeStreak();
+
+  renderStreakGrid();
+
+  document.getElementById(
+    "streakModal"
+  ).style.display =
+    "flex";
+}
+
+function closeStreakModal() {
+  document.getElementById(
+    "streakModal"
+  ).style.display =
+    "none";
+}
+
+function renderStreakGrid() {
+  const grid =
+    document.getElementById(
+      "streakGrid"
+    );
+
+  grid.innerHTML = "";
+
+  const today =
+    getLocalDateKey();
+
+  const alreadyClaimedToday =
+    lastClaimDate === today;
+
+  streakRewards.forEach(
+    (reward, idx) => {
+
+      const dayNum =
+        idx + 1;
+
+      let statusClass = "";
+
+      if (
+        dayNum < streakDay ||
+        (
+          dayNum === streakDay &&
+          alreadyClaimedToday
+        )
+      ) {
+        statusClass =
+          "claimed";
+      }
+
+      else if (
+        dayNum === streakDay &&
+        !alreadyClaimedToday
+      ) {
+        statusClass =
+          "current";
+      }
+
+      const el =
+        document.createElement(
+          "div"
+        );
+
+      el.className =
+        `streak-day ${statusClass}`;
+
+      const day =
+        document.createElement(
+          "span"
+        );
+
+      day.innerText =
+        `Día ${dayNum}`;
+
+      const icon =
+        document.createElement(
+          "span"
+        );
+
+      icon.className =
+        "streak-day-icon";
+
+      icon.innerText =
+        reward.icon;
+
+      const label =
+        document.createElement(
+          "span"
+        );
+
+      label.style.fontWeight =
+        "bold";
+
+      label.style.fontSize =
+        ".65rem";
+
+      label.innerText =
+        reward.label;
+
+      el.appendChild(day);
+      el.appendChild(icon);
+      el.appendChild(label);
+
+      grid.appendChild(el);
+    }
+  );
+
+  const claimBtn =
+    document.getElementById(
+      "claimStreakBtn"
+    );
+
+  if (
+    alreadyClaimedToday
+  ) {
+    claimBtn.disabled =
+      true;
+
+    claimBtn.innerText =
+      "✅ Recompensa de hoy reclamada";
+  }
+
+  else {
+    claimBtn.disabled =
+      false;
+
+    claimBtn.innerText =
+      `¡Reclamar Día ${streakDay}!`;
+  }
+}
+
+function claimDailyStreak() {
+  normalizeStreak();
+
+  const today =
+    getLocalDateKey();
+
+  if (
+    lastClaimDate ===
+    today
+  ) {
+    return;
+  }
+
+  const reward =
+    streakRewards[
+      streakDay - 1
+    ];
+
+  if (!reward) {
+    return;
+  }
+
+  if (
+    reward.type === "coins"
+  ) {
+    coins += reward.val;
+    lifetimeCoins += reward.val;
+  }
+
+  else if (
+    reward.type === "shield"
+  ) {
+    shields += reward.val;
+  }
+
+  else if (
+    reward.type === "meme"
+  ) {
+    const template =
+      allMemes.find(
+        m =>
+          m.id ===
+          reward.memeId
+      );
+
+    if (template) {
+      inventory.push({
+        ...template
+      });
+    }
+  }
+
+  lastClaimDate =
+    today;
+
+  streakDay++;
+
+  if (
+    streakDay >
+    streakRewards.length
+  ) {
+    streakDay = 1;
+  }
+
+  playSound("rebirth");
+
+  renderStreakGrid();
+  updateUI();
+  saveGame();
+}
+
+
+/* =========================================================
+   RESTOCK
+========================================================= */
+
+function getRarityMultiplier(
+  rarity
+) {
+  const multipliers = {
+    "Común": 2.2,
+    "Raro": 1.2,
+    "Épico": .55,
+    "Legendario": .20,
+    "Mítico": .06,
+    "Secreto": .01,
+    "Exótico": .0002
+  };
+
+  return (
+    multipliers[rarity] ||
+    1
+  );
+}
+
+
+/*
+  forceMythic = true
+  significa que este restock debe tener
+  un Mítico garantizado.
+
+  Se utiliza SOLO al terminar Admin Abuse.
+*/
+function restockShop(
+  forceMythic = false
+) {
+  shopMemes =
+    allMemes
+      .map(item => {
+
+        const rarityMultiplier =
+          getRarityMultiplier(
+            item.rarity
+          );
+
+        const chance =
+          Math.min(
+            1,
+            item.chance *
+              rarityMultiplier
+          );
+
+        const hasStock =
+          Math.random() <=
+          chance;
+
+        let stock =
+          hasStock
+            ? Math.floor(
+                Math.random() * 2
+              ) + 1
+            : 0;
+
+        /*
+          Admin Abuse:
+          x5 cantidad de stock.
+        */
+        if (
+          isAdminAbuseActive() &&
+          stock > 0
+        ) {
+          stock *= 5;
+        }
+
+        return {
+          ...item,
+          stock
+        };
+      });
+
+
+  /*
+    DROP MÍTICO GARANTIZADO
+  */
+  if (forceMythic) {
+
+    const mythics =
+      shopMemes.filter(
+        item =>
+          item.rarity ===
+          "Mítico"
+      );
+
+    if (
+      mythics.length > 0
+    ) {
+      /*
+        Elegimos un Mítico aleatorio
+        para que no sea siempre el mismo.
+      */
+      const selected =
+        mythics[
+          Math.floor(
+            Math.random() *
+            mythics.length
+          )
+        ];
+
+      /*
+        Al terminar el Admin Abuse
+        queremos que haya stock visible.
+        Como ya no está activo, no se aplica x5.
+      */
+      selected.stock =
+        Math.max(
+          1,
+          selected.stock
+        );
+
+      selected.adminGuaranteed =
+        true;
+
+      adminGuaranteedMythicPending =
+        true;
+    }
+  }
+
+
+  shopMemes =
+    shopMemes.sort(
+      (a, b) =>
+        a.cps - b.cps
+    );
+
+  renderShop();
+}
+
+function restockPowerupsShop() {
+  shopPowerups =
+    basePowerups.map(
+      powerup => {
+
+        const hasStock =
+          Math.random() <=
+          powerup.chance;
+
+        const stock =
+          hasStock
+            ? Math.floor(
+                Math.random() * 3
+              ) + 1
+            : 0;
+
+        return {
+          ...powerup,
+          stock
+        };
+      }
+    );
+
+  renderShop();
+}
+
+
+/* =========================================================
+   RENDER SHOP
+========================================================= */
+
+function getRarityClass(
+  rarity
+) {
+  return {
+    "Común": "rarity-common",
+    "Raro": "rarity-rare",
+    "Épico": "rarity-epic",
+    "Legendario": "rarity-legendary",
+    "Mítico": "rarity-mythic",
+    "Exótico": "rarity-exotic",
+    "Secreto": "rarity-secret"
+  }[rarity] || "";
+}
+
+function renderShop() {
+  const container =
+    document.getElementById(
+      "memeShopList"
+    );
+
+  container.innerHTML = "";
+
+  shopMemes.forEach(
+    (item, index) => {
+
+      const el =
+        document.createElement(
+          "div"
+        );
+
+      el.className =
+        "shop-item";
+
+      /*
+        Destaca el Mítico especial.
+      */
+      if (
+        item.adminGuaranteed &&
+        item.stock > 0
+      ) {
+        el.classList.add(
+          "admin-guaranteed-mythic"
+        );
+      }
+
+      const info =
+        document.createElement(
+          "div"
+        );
+
+      info.className =
+        "item-info";
+
+      const icon =
+        document.createElement(
+          "span"
+        );
+
+      icon.className =
+        "item-icon";
+
+      icon.innerText =
+        item.icon;
+
+      const details =
+        document.createElement(
+          "div"
+        );
+
+      const name =
+        document.createElement(
+          "div"
+        );
+
+      name.className =
+        "item-name";
+
+      name.innerText =
+        item.name;
+
+      const tag =
+        document.createElement(
+          "span"
+        );
+
+      tag.className =
+        `stock-tag ${
+          getRarityClass(
+            item.rarity
+          )
+        }`;
+
+      tag.innerText =
+        item.rarity;
+
+      name.appendChild(tag);
+
+      /*
+        Tag especial del Admin.
+      */
+      if (
+        item.adminGuaranteed &&
+        item.stock > 0
+      ) {
+        const adminTag =
+          document.createElement(
+            "span"
+          );
+
+        adminTag.className =
+          "stock-tag";
+
+        adminTag.style.background =
+          "#ff304f";
+
+        adminTag.style.color =
+          "#fff";
+
+        adminTag.innerText =
+          "🔥 ADMIN";
+
+        name.appendChild(
+          adminTag
+        );
+      }
+
+      const stats =
+        document.createElement(
+          "div"
+        );
+
+      stats.style.fontSize =
+        ".72rem";
+
+      stats.style.color =
+        "#aaa";
+
+      const stockText =
+        document.createElement(
+          "strong"
+        );
+
+      stockText.style.color =
+        item.stock > 0
+          ? "var(--accent-green)"
+          : "var(--accent-pink)";
+
+      stockText.innerText =
+        item.stock;
+
+      stats.appendChild(
+        document.createTextNode(
+          `+${item.cps.toLocaleString()} 🪙/s | Stock: `
+        )
+      );
+
+      stats.appendChild(
+        stockText
+      );
+
+      details.appendChild(name);
+      details.appendChild(stats);
+
+      info.appendChild(icon);
+      info.appendChild(details);
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.className =
+        "buy-btn";
+
+      button.disabled =
+        item.stock <= 0 ||
+        !canAfford(
+          item.price
+        );
+
+      button.innerText =
+        `🪙 ${item.price.toLocaleString()}`;
+
+      button.onclick =
+        () => buyMeme(index);
+
+      el.appendChild(info);
+      el.appendChild(button);
+
+      container.appendChild(el);
+    }
+  );
+
+
+  const powerContainer =
+    document.getElementById(
+      "powerShopList"
+    );
+
+  powerContainer.innerHTML = "";
+
+  shopPowerups.forEach(
+    (powerup, index) => {
+
+      const el =
+        document.createElement(
+          "div"
+        );
+
+      el.className =
+        "shop-item";
+
+      const info =
+        document.createElement(
+          "div"
+        );
+
+      info.className =
+        "item-info";
+
+      const icon =
+        document.createElement(
+          "span"
+        );
+
+      icon.className =
+        "item-icon";
+
+      icon.innerText =
+        powerup.icon;
+
+      const details =
+        document.createElement(
+          "div"
+        );
+
+      const name =
+        document.createElement(
+          "div"
+        );
+
+      name.className =
+        "item-name";
+
+      name.innerText =
+        powerup.name;
+
+      const tag =
+        document.createElement(
+          "span"
+        );
+
+      tag.className =
+        "stock-tag";
+
+      tag.style.background =
+        "var(--accent-blue)";
+
+      tag.style.color =
+        "#000";
+
+      tag.innerText =
+        "Power-Up";
+
+      name.appendChild(tag);
+
+      const stats =
+        document.createElement(
+          "div"
+        );
+
+      stats.style.fontSize =
+        ".72rem";
+
+      stats.style.color =
+        "#aaa";
+
+      const stock =
+        document.createElement(
+          "strong"
+        );
+
+      stock.style.color =
+        powerup.stock > 0
+          ? "var(--accent-green)"
+          : "var(--accent-pink)";
+
+      stock.innerText =
+        powerup.stock;
+
+      stats.appendChild(
+        document.createTextNode(
+          `${powerup.desc} | Stock: `
+        )
+      );
+
+      stats.appendChild(
+        stock
+      );
+
+      details.appendChild(name);
+      details.appendChild(stats);
+
+      info.appendChild(icon);
+      info.appendChild(details);
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.className =
+        "buy-btn";
+
+      button.disabled =
+        powerup.stock <= 0 ||
+        !canAfford(
+          powerup.price
+        );
+
+      button.innerText =
+        `🪙 ${powerup.price.toLocaleString()}`;
+
+      button.onclick =
+        () => buyPowerup(index);
+
+      el.appendChild(info);
+      el.appendChild(button);
+
+      powerContainer.appendChild(el);
+    }
+  );
+}
+
+
+/* =========================================================
+   COMPRAR MEME
+========================================================= */
+
+function buyMeme(index) {
+  const item =
+    shopMemes[index];
+
+  if (!item) {
+    return;
+  }
+
+  if (
+    item.stock <= 0 ||
+    !canAfford(
+      item.price
+    )
+  ) {
+    return;
+  }
+
+  coins -=
+    item.price;
+
+  if (coins < 0) {
+    coins = 0;
+  }
+
+  item.stock--;
+
+  /*
+    Si era el Mítico garantizado,
+    desaparece la marca al comprarlo.
+  */
+  if (
+    item.adminGuaranteed &&
+    item.stock <= 0
+  ) {
+    item.adminGuaranteed =
+      false;
+
+    adminGuaranteedMythicPending =
+      false;
+
+    const message =
+      document.getElementById(
+        "adminDropMessage"
+      );
+
+    if (message) {
+      message.style.display =
+        "none";
+    }
+  }
+
+  inventory.push({
+    ...item,
+    adminGuaranteed: undefined
+  });
+
+  playSound("buy");
+
+  updateUI();
+  renderShop();
+  saveGame();
+}
+
+
+/* =========================================================
+   COMPRAR POWERUP
+========================================================= */
+
+function buyPowerup(index) {
+  const powerup =
+    shopPowerups[index];
+
+  if (!powerup) {
+    return;
+  }
+
+  if (
+    powerup.stock <= 0 ||
+    !canAfford(
+      powerup.price
+    )
+  ) {
+    return;
+  }
+
+  coins -=
+    powerup.price;
+
+  if (coins < 0) {
+    coins = 0;
+  }
+
+  powerup.stock--;
+
+  if (
+    powerup.type ===
+    "shield"
+  ) {
+    shields++;
+  }
+
+  else if (
+    powerup.type ===
+    "boost"
+  ) {
+    boostExpiresAt =
+      Math.max(
+        Date.now(),
+        boostExpiresAt
+      ) + 30000;
+  }
+
+  else if (
+    powerup.type ===
+    "shortWords"
+  ) {
+    shortWordsActive += 3;
+  }
+
+  else if (
+    powerup.type ===
+    "luckydice"
+  ) {
+    restockShop();
+    restockPowerupsShop();
+
+    restockTimerVal = 30;
+    restockTimerPowerVal = 60;
+  }
+
+  else if (
+    powerup.type ===
+    "moneystorm"
+  ) {
+    moneyStormExpiresAt =
+      Math.max(
+        Date.now(),
+        moneyStormExpiresAt
+      ) + 30000;
+  }
+
+  playSound("buy");
+
+  updateUI();
+  renderShop();
+  saveGame();
+}
+
+
+/* =========================================================
+   JARDÍN / INVENTARIO
+========================================================= */
+
+function selectInventoryItem(
+  index
+) {
+  if (!inventory[index]) {
+    return;
+  }
+
+  playSound("select");
+
+  if (
+    selectedInvIndex ===
+    index
+  ) {
+    selectedInvIndex =
+      null;
+  }
+
+  else {
+    selectedInvIndex =
+      index;
+  }
+
+  renderInventory();
+}
+
+function handlePlotClick(
+  plotIndex
+) {
+  ensureGardenSize();
+
+  if (
+    plotIndex < 0 ||
+    plotIndex >= maxPlots
+  ) {
+    return;
+  }
+
+  if (
+    selectedInvIndex !==
+    null
+  ) {
+    const item =
+      inventory[
+        selectedInvIndex
+      ];
+
+    if (!item) {
+      selectedInvIndex =
+        null;
+
+      renderInventory();
+
+      return;
+    }
+
+    if (
+      !garden[plotIndex]
+    ) {
+      garden[plotIndex] =
+        item;
+
+      inventory.splice(
+        selectedInvIndex,
+        1
+      );
+
+      selectedInvIndex =
+        null;
+
+      playSound("plant");
+
+      updateUI();
+      saveGame();
+    }
+
+    return;
+  }
+
+  if (
+    garden[plotIndex]
+  ) {
+    inventory.push(
+      garden[plotIndex]
+    );
+
+    garden[plotIndex] =
+      null;
+
+    playSound("select");
+
+    updateUI();
+    saveGame();
+  }
+}
+
+
+/* =========================================================
+   REBIRTH
+========================================================= */
+
+function doRebirth() {
+  if (
+    rebirths >=
+    MAX_REBIRTHS
+  ) {
+    return;
+  }
+
+  const currentReq =
+    rebirthConfigs[
+      rebirths
+    ];
+
+  if (!currentReq) {
+    return;
+  }
+
+  if (
+    coins >=
+      currentReq.cost &&
+    lifetimeCoins >=
+      currentReq.lifetimeReq
+  ) {
+    const newMaxPlots =
+      maxPlots +
+      currentReq.addPlots;
+
+    coins = 100;
+
+    inventory = [];
+
+    maxPlots =
+      newMaxPlots;
+
+    rebirths++;
+
+    garden =
+      new Array(
+        maxPlots
+      ).fill(null);
+
+    selectedInvIndex =
+      null;
+
+    playSound("rebirth");
+
+    updateUI();
+    saveGame();
+  }
+}
+
+
+/* =========================================================
+   ROBO
+========================================================= */
+
+function triggerStealAttempt() {
+  if (
+    stealTimer !==
+    null
+  ) {
+    return;
+  }
+
+  if (
+    shields > 0
+  ) {
+    shields--;
+
+    playSound("defend");
+
+    updateUI();
+    saveGame();
+
+    return;
+  }
+
+  ensureGardenSize();
+
+  currentStealPlots =
+    garden
+      .map(
+        (item, idx) =>
+          item !== null
+            ? idx
+            : -1
+      )
+      .filter(
+        idx =>
+          idx !== -1
+      );
+
+  if (
+    currentStealPlots.length ===
+    0
+  ) {
+    return;
+  }
+
+  playSound("alarm");
+
+  const wordPool =
+    shortWordsActive > 0
+      ? wordsShort
+      : wordsNormal;
+
+  currentWord =
+    wordPool[
+      Math.floor(
+        Math.random() *
+        wordPool.length
+      )
+    ];
+
+  const wordElement =
+    document.getElementById(
+      "targetWord"
+    );
+
+  wordElement.innerText =
+    currentWord;
+
+  const input =
+    document.getElementById(
+      "typeInput"
+    );
+
+  input.value = "";
+
+  document.getElementById(
+    "stealAlert"
+  ).style.display =
+    "flex";
+
+  setTimeout(() => {
+    input.focus();
+  }, 30);
+
+  stealTimeLeft = 7;
+
+  const timerFill =
+    document.getElementById(
+      "timerFill"
+    );
+
+  clearInterval(
+    stealTimer
+  );
+
+  stealTimer =
+    setInterval(() => {
+
+      stealTimeLeft -= .1;
+
+      const safeTime =
+        Math.max(
+          0,
+          stealTimeLeft
+        );
+
+      document.getElementById(
+        "timerText"
+      ).innerText =
+        `⏳ Tiempo restante: ${safeTime.toFixed(1)}s`;
+
+      timerFill.style.width =
+        `${(safeTime / 7) * 100}%`;
+
+      if (
+        stealTimeLeft <= 0
+      ) {
+        clearInterval(
+          stealTimer
+        );
+
+        stealTimer =
+          null;
+
+        failStealDefense(
+          currentStealPlots
+        );
+      }
+
+    }, 100);
+}
+
+document
+  .getElementById(
+    "typeInput"
+  )
+  .addEventListener(
+    "input",
+    event => {
+
+      if (
+        stealTimer ===
+        null
+      ) {
+        return;
+      }
+
+      const typed =
+        event.target.value
+          .toUpperCase()
+          .trim();
+
+      if (
+        typed ===
+        currentWord
+      ) {
+        clearInterval(
+          stealTimer
+        );
+
+        stealTimer =
+          null;
+
+        document.getElementById(
+          "stealAlert"
+        ).style.display =
+          "none";
+
+        playSound("defend");
+
+        if (
+          shortWordsActive >
+          0
+        ) {
+          shortWordsActive--;
+        }
+
+        currentWord =
+          "";
+
+        saveGame();
+        updateUI();
+      }
+    }
+  );
+
+function failStealDefense(
+  occupiedPlots
+) {
+  document.getElementById(
+    "stealAlert"
+  ).style.display =
+    "none";
+
+  playSound("fail");
+
+  if (
+    !Array.isArray(
+      occupiedPlots
+    ) ||
+    occupiedPlots.length ===
+      0
+  ) {
+    return;
+  }
+
+  const randomPlot =
+    occupiedPlots[
+      Math.floor(
+        Math.random() *
+        occupiedPlots.length
+      )
+    ];
+
+  garden[randomPlot] =
+    null;
+
+  currentStealPlots =
+    [];
+
+  updateUI();
+  saveGame();
+}
+
+
+/*
+  Robo periódico.
+*/
+setInterval(() => {
+
+  if (
+    stealTimer !==
+    null
+  ) {
+    return;
+  }
+
+  if (
+    Math.random() <
+    .6
+  ) {
+    triggerStealAttempt();
+  }
+
+}, 60000);
+
+
+/* =========================================================
+   CPS
+========================================================= */
+
+function calculateCPS() {
+  const baseCPS =
+    garden.reduce(
+      (
+        total,
+        item
+      ) =>
+        total +
+        (
+          item &&
+          Number.isFinite(
+            item.cps
+          )
+            ? item.cps
+            : 0
+        ),
+      0
+    );
+
+  let rebirthMult =
+    1;
+
+  for (
+    let i = 0;
+    i < rebirths &&
+    i < rebirthConfigs.length;
+    i++
+  ) {
+    rebirthMult *=
+      rebirthConfigs[
+        i
+      ].bonusMultiplier;
+  }
+
+  return (
+    baseCPS *
+    rebirthMult *
+    getTemporaryMoneyMultiplier() *
+    getMoneyMultiplier()
+  );
+}
+
+
+/* =========================================================
+   UI
+========================================================= */
+
+function updateUI() {
+  ensureGardenSize();
+
+  const currentCPS =
+    calculateCPS();
+
+  document.getElementById(
+    "coins"
+  ).innerText =
+    formatNumber(coins);
+
+  document.getElementById(
+    "cps"
+  ).innerText =
+    currentCPS.toLocaleString(
+      "es-ES",
+      {
+        maximumFractionDigits: 0
+      }
+    );
+
+  document.getElementById(
+    "shields"
+  ).innerText =
+    shields;
+
+  document.getElementById(
+    "rebirthsVal"
+  ).innerText =
+    `Rebirth ${rebirths}/${MAX_REBIRTHS}`;
+
+  document.getElementById(
+    "plotsVal"
+  ).innerText =
+    `${maxPlots} Parcelas`;
+
+  renderGarden();
+  renderInventory();
+  updateRebirthUI();
+  updatePowerupStatus();
+  updateAdminStatus();
+}
+
+function renderGarden() {
+  const gardenGrid =
+    document.getElementById(
+      "garden"
+    );
+
+  gardenGrid.innerHTML = "";
+
+  for (
+    let i = 0;
+    i < maxPlots;
+    i++
+  ) {
+    const item =
+      garden[i] ||
+      null;
+
+    const plot =
+      document.createElement(
+        "div"
+      );
+
+    plot.className =
+      `plot ${
+        item
+          ? "occupied"
+          : ""
+      }`;
+
+    plot.onclick =
+      () =>
+        handlePlotClick(i);
+
+    if (item) {
+
+      const icon =
+        document.createElement(
+          "div"
+        );
+
+      icon.className =
+        "plot-icon";
+
+      icon.innerText =
+        item.icon;
+
+      const name =
+        document.createElement(
+          "div"
+        );
+
+      name.className =
+        "plot-name";
+
+      name.style.color =
+        item.color ||
+        "var(--text-color)";
+
+      name.innerText =
+        item.name;
+
+      plot.appendChild(
+        icon
+      );
+
+      plot.appendChild(
+        name
+      );
+
+    } else {
+
+      const empty =
+        document.createElement(
+          "span"
+        );
+
+      empty.style.color =
+        "rgba(255,255,255,.2)";
+
+      empty.style.fontSize =
+        ".8rem";
+
+      empty.innerText =
+        "+ Plantar";
+
+      plot.appendChild(
+        empty
+      );
+    }
+
+    gardenGrid.appendChild(
+      plot
+    );
+  }
+}
+
+function renderInventory() {
+  const container =
+    document.getElementById(
+      "inventoryList"
+    );
+
+  container.innerHTML = "";
+
+  inventory.forEach(
+    (item, index) => {
+
+      const el =
+        document.createElement(
+          "div"
+        );
+
+      el.className =
+        `inv-item ${
+          selectedInvIndex ===
+          index
+            ? "selected"
+            : ""
+        }`;
+
+      el.innerText =
+        item.icon;
+
+      el.title =
+        `${item.name} · ${item.cps.toLocaleString()} CPS`;
+
+      el.onclick =
+        () =>
+          selectInventoryItem(
+            index
+          );
+
+      container.appendChild(
+        el
+      );
+    }
+  );
+}
+
+function updateRebirthUI() {
+  const currentReq =
+    rebirthConfigs[
+      rebirths
+    ];
+
+  const title =
+    document.getElementById(
+      "rebirthTitle"
+    );
+
+  const button =
+    document.getElementById(
+      "rebirthBtn"
+    );
+
+  if (!currentReq) {
+
+    title.innerText =
+      "🌀 MÁXIMO REBIRTH ALCANZADO";
+
+    document.getElementById(
+      "rebirthDesc"
+    ).innerText =
+      "Has alcanzado el nivel máximo de evolución Meme.";
+
+    button.disabled =
+      true;
+
+    return;
+  }
+
+  title.innerText =
+    `🌀 REBIRTH ${currentReq.level} / ${MAX_REBIRTHS}`;
+
+  document.getElementById(
+    "reqCoins"
+  ).innerText =
+    `${formatNumber(coins)} / ${currentReq.cost.toLocaleString("es-ES")}`;
+
+  document.getElementById(
+    "reqLifetime"
+  ).innerText =
+    `${formatNumber(lifetimeCoins)} / ${currentReq.lifetimeReq.toLocaleString("es-ES")}`;
+
+  document.getElementById(
+    "reqReward"
+  ).innerText =
+    `+${currentReq.addPlots} Slot y x${currentReq.bonusMultiplier} Monedas`;
+
+  const canRebirth =
+    coins >=
+      currentReq.cost &&
+    lifetimeCoins >=
+      currentReq.lifetimeReq;
+
+  button.disabled =
+    !canRebirth;
+}
+
+function updatePowerupStatus() {
+  const now =
+    Date.now();
+
+  const boostActive =
+    now <
+    boostExpiresAt;
+
+  const stormActive =
+    now <
+    moneyStormExpiresAt;
+
+  let status = [];
+
+  if (boostActive) {
+    status.push(
+      `⚡ x2 ${Math.ceil(
+        (boostExpiresAt - now) /
+        1000
+      )}s`
+    );
+  }
+
+  if (stormActive) {
+    status.push(
+      `💥 x5 ${Math.ceil(
+        (moneyStormExpiresAt - now) /
+        1000
+      )}s`
+    );
+  }
+
+  if (
+    shortWordsActive >
+    0
+  ) {
+    status.push(
+      `📖 ${shortWordsActive} robos fáciles`
+    );
+  }
+
+  const existing =
+    document.getElementById(
+      "powerStatus"
+    );
+
+  if (existing) {
+    existing.innerText =
+      status.length
+        ? status.join(" · ")
+        : "";
+  }
+}
+
+
+/* =========================================================
+   TABS
+========================================================= */
+
+function switchTab(
+  tabId,
+  button
+) {
+  playSound("select");
+
+  document
+    .querySelectorAll(
+      ".tab-btn"
+    )
+    .forEach(
+      btn =>
+        btn.classList.remove(
+          "active"
+        )
+    );
+
+  document
+    .querySelectorAll(
+      ".tab-content"
+    )
+    .forEach(
+      content =>
+        content.classList.remove(
+          "active"
+        )
+    );
+
+  if (button) {
+    button.classList.add(
+      "active"
+    );
+  }
+
+  const target =
+    document.getElementById(
+      `tab-${tabId}`
+    );
+
+  if (target) {
+    target.classList.add(
+      "active"
+    );
+  }
+
+  if (
+    tabId ===
+    "leaderboard"
+  ) {
+    fetchOnlineLeaderboard();
+  }
+}
+
+
+/* =========================================================
+   NOMBRE
+========================================================= */
+
+function updatePlayerName() {
+  const input =
+    document.getElementById(
+      "playerNameInput"
+    );
+
+  const clean =
+    normalizePlayerName(
+      input.value
+    );
+
+  playerName =
+    clean;
+
+  input.value =
+    playerName;
+
+  localStorage.setItem(
+    "brainrot_player_name",
+    playerName
+  );
+
+  playSound("buy");
+
+  saveGame();
+
+  fetchOnlineLeaderboard();
+}
+
+
+/* =========================================================
+   ADMIN UI
+========================================================= */
+
+function updateAdminStatus() {
+  const active =
+    isAdminAbuseActive();
+
+  const badge =
+    document.getElementById(
+      "adminBadge"
+    );
+
+  const status =
+    document.getElementById(
+      "adminStatus"
+    );
+
+  if (active) {
+
+    document.body.classList.add(
+      "admin-abuse-active"
+    );
+
+    badge.innerText =
+      "🔥 ADMIN ABUSE ACTIVO · x5 STOCK · x2 DINERO";
+
+    badge.classList.add(
+      "admin-active"
+    );
+
+    status.classList.add(
+      "admin-active"
+    );
+
+    status.innerText =
+      "🔥 ADMIN ABUSE ACTIVO · x5 stock · x2 dinero · 🎉 CONFETI ACTIVADO";
+
+  } else {
+
+    document.body.classList.remove(
+      "admin-abuse-active"
+    );
+
+    badge.innerText =
+      "⚡ ADMIN ABUSE INACTIVO";
+
+    badge.classList.remove(
+      "admin-active"
+    );
+
+    status.classList.remove(
+      "admin-active"
+    );
+
+    status.innerText =
+      "⚡ ADMIN ABUSE · Domingos 21:50-22:00 · x5 stock · x2 dinero.";
+
+  }
+}
+
+
+/* =========================================================
+   UPDATE TIMER
+========================================================= */
+
+function getNextSundayAt22() {
+  const now =
+    new Date();
+
+  const target =
+    new Date(now);
+
+  const daysUntilSunday =
+    (
+      7 -
+      now.getDay()
+    ) % 7;
+
+  target.setDate(
+    now.getDate() +
+    daysUntilSunday
+  );
+
+  target.setHours(
+    22,
+    0,
+    0,
+    0
+  );
+
+  if (
+    target <= now
+  ) {
+    target.setDate(
+      target.getDate() + 7
+    );
+  }
+
+  return target;
+}
+
+function updateNextUpdateTimer() {
+  const now =
+    new Date();
+
+  const target =
+    getNextSundayAt22();
+
+  const diff =
+    Math.max(
+      0,
+      target - now
+    );
+
+  const days =
+    Math.floor(
+      diff /
+      (1000 * 60 * 60 * 24)
+    );
+
+  const hours =
+    Math.floor(
+      (
+        diff %
+        (1000 * 60 * 60 * 24)
+      ) /
+      (1000 * 60 * 60)
+    );
+
+  const minutes =
+    Math.floor(
+      (
+        diff %
+        (1000 * 60 * 60)
+      ) /
+      (1000 * 60)
+    );
+
+  const seconds =
+    Math.floor(
+      (
+        diff %
+        (1000 * 60)
+      ) /
+      1000
+    );
+
+  document.getElementById(
+    "updateCountdown"
+  ).innerText =
+    `${days}d ${String(hours).padStart(2,"0")}h ` +
+    `${String(minutes).padStart(2,"0")}m ` +
+    `${String(seconds).padStart(2,"0")}s`;
+
+  checkAdminAbuseTransition();
+
+  updateAdminStatus();
+}
+
+
+/* =========================================================
+   LEADERBOARD
+========================================================= */
+
+const demoPlayers = [
+  {
+    id: "demo_01",
+    name: "LeoRizz",
+    lifetimeCoins: 845000000000,
+    rebirths: 8
+  },
+  {
+    id: "demo_02",
+    name: "MartaSigma",
+    lifetimeCoins: 672000000000,
+    rebirths: 8
+  },
+  {
+    id: "demo_03",
+    name: "AlexBrainrot",
+    lifetimeCoins: 481000000000,
+    rebirths: 7
+  },
+  {
+    id: "demo_04",
+    name: "RizzMaster77",
+    lifetimeCoins: 325000000000,
+    rebirths: 7
+  },
+  {
+    id: "demo_05",
+    name: "SofiOhio",
+    lifetimeCoins: 218000000000,
+    rebirths: 6
+  },
+  {
+    id: "demo_06",
+    name: "GigaNico",
+    lifetimeCoins: 154000000000,
+    rebirths: 6
+  },
+  {
+    id: "demo_07",
+    name: "DaniSkibidi",
+    lifetimeCoins: 98000000000,
+    rebirths: 5
+  },
+  {
+    id: "demo_08",
+    name: "BrainrotKid",
+    lifetimeCoins: 64000000000,
+    rebirths: 5
+  },
+  {
+    id: "demo_09",
+    name: "PabloSigma",
+    lifetimeCoins: 42000000000,
+    rebirths: 4
+  },
+  {
+    id: "demo_10",
+    name: "LunaRizz",
+    lifetimeCoins: 18500000000,
+    rebirths: 4
+  },
+  {
+    id: "demo_11",
+    name: "OhioEnjoyer",
+    lifetimeCoins: 9200000000,
+    rebirths: 3
+  },
+  {
+    id: "demo_12",
+    name: "MewingPro",
+    lifetimeCoins: 3800000000,
+    rebirths: 3
+  }
+];
+
+function getLocalLeaderboardPlayer() {
+  return {
+    id: playerId,
+    name: playerName,
+    lifetimeCoins:
+      Math.floor(
+        lifetimeCoins
+      ),
+    rebirths
+  };
+}
+
+function mergeLeaderboardPlayers(
+  realPlayers
+) {
+  const map =
+    new Map();
+
+  demoPlayers.forEach(
+    player => {
+      map.set(
+        player.id,
+        {
+          ...player
+        }
+      );
+    }
+  );
+
+  realPlayers.forEach(
+    player => {
+
+      if (
+        !player ||
+        !player.id
+      ) {
+        return;
+      }
+
+      map.set(
+        player.id,
+        {
+          id: player.id,
+
+          name:
+            normalizePlayerName(
+              player.name
+            ),
+
+          lifetimeCoins:
+            Math.max(
+              0,
+              Number(
+                player.lifetimeCoins
+              ) || 0
+            ),
+
+          rebirths:
+            clampNumber(
+              Number(
+                player.rebirths
+              ) || 0,
+              0,
+              MAX_REBIRTHS
+            )
+        }
+      );
+    }
+  );
+
+  map.set(
+    playerId,
+    getLocalLeaderboardPlayer()
+  );
+
+  return Array.from(
+    map.values()
+  ).sort(
+    (a, b) =>
+      b.lifetimeCoins -
+      a.lifetimeCoins
+  );
+}
+
+function renderLeaderboard(
+  players
+) {
+  const container =
+    document.getElementById(
+      "leaderboardList"
+    );
+
+  container.innerHTML = "";
+
+  const sorted =
+    mergeLeaderboardPlayers(
+      players
+    );
+
+  const myIndex =
+    sorted.findIndex(
+      player =>
+        player.id ===
+        playerId
+    );
+
+  const visible =
+    sorted.slice(0, 12);
+
+  if (
+    myIndex >= 12 &&
+    myIndex !== -1
+  ) {
+    visible.push(
+      sorted[myIndex]
+    );
+  }
+
+  visible.forEach(
+    player => {
+
+      const realRank =
+        sorted.findIndex(
+          p =>
+            p.id ===
+            player.id
+        ) + 1;
+
+      const card =
+        document.createElement(
+          "div"
+        );
+
+      card.className =
+        `lb-card ${
+          player.id === playerId
+            ? "is-player"
+            : ""
+        }`;
+
+      const left =
+        document.createElement(
+          "div"
+        );
+
+      left.className =
+        "lb-left";
+
+      const rank =
+        document.createElement(
+          "span"
+        );
+
+      rank.className =
+        "lb-rank";
+
+      rank.innerText =
+        `#${realRank}`;
+
+      const info =
+        document.createElement(
+          "div"
+        );
+
+      info.className =
+        "lb-player-info";
+
+      const name =
+        document.createElement(
+          "div"
+        );
+
+      name.className =
+        "lb-player-name";
+
+      name.textContent =
+        player.name;
+
+      const rebirth =
+        document.createElement(
+          "div"
+        );
+
+      rebirth.style.fontSize =
+        ".7rem";
+
+      rebirth.style.color =
+        "#aaa";
+
+      rebirth.innerText =
+        `Rebirth ${player.rebirths}`;
+
+      info.appendChild(
+        name
+      );
+
+      info.appendChild(
+        rebirth
+      );
+
+      left.appendChild(
+        rank
+      );
+
+      left.appendChild(
+        info
+      );
+
+      const score =
+        document.createElement(
+          "div"
+        );
+
+      score.className =
+        "lb-score";
+
+      score.innerText =
+        `🪙 ${formatNumber(
+          player.lifetimeCoins
+        )}`;
+
+      card.appendChild(
+        left
+      );
+
+      card.appendChild(
+        score
+      );
+
+      container.appendChild(
+        card
+      );
+    }
+  );
+
+  const myRankBox =
+    document.getElementById(
+      "myRankBox"
+    );
+
+  if (
+    myIndex !== -1
+  ) {
+    myRankBox.innerText =
+      `🏆 Tu posición actual: #${myIndex + 1} de ${sorted.length}`;
+  }
+
+  else {
+    myRankBox.innerText =
+      "🏆 Tu posición se está calculando...";
+  }
+
+  document.getElementById(
+    "leaderboardStatus"
+  ).innerText =
+    isFirebaseActive
+      ? "🌐 Jugadores online + clasificación de demostración"
+      : "🌐 Clasificación local de demostración · conecta Firebase para jugadores reales";
+}
+
+function fetchOnlineLeaderboard() {
+  renderLeaderboard([]);
+
+  if (
+    !isFirebaseActive ||
+    !db
+  ) {
+    return;
+  }
+
+  db.collection(
+    "leaderboard"
+  )
+    .orderBy(
+      "lifetimeCoins",
+      "desc"
+    )
+    .limit(100)
+    .get()
+    .then(
+      snapshot => {
+
+        const realPlayers =
+          [];
+
+        snapshot.forEach(
+          doc => {
+
+            const data =
+              doc.data();
+
+            realPlayers.push({
+              id: doc.id,
+
+              name:
+                data.name,
+
+              lifetimeCoins:
+                data.lifetimeCoins ||
+                0,
+
+              rebirths:
+                data.rebirths ||
+                0
+            });
+          }
+        );
+
+        renderLeaderboard(
+          realPlayers
+        );
+      }
+    )
+    .catch(
+      error => {
+
+        console.error(
+          "Error al cargar leaderboard:",
+          error
+        );
+
+        document.getElementById(
+          "leaderboardStatus"
+        ).innerText =
+          "⚠️ Ranking online no disponible · mostrando clasificación local";
+
+        renderLeaderboard([]);
+      }
+    );
+}
+
+function syncOnlineLeaderboard() {
+  if (
+    !isFirebaseActive ||
+    !db
+  ) {
+    return;
+  }
+
+  const indicator =
+    document.getElementById(
+      "saveIndicator"
+    );
+
+  indicator.style.opacity =
+    "1";
+
+  db.collection(
+    "leaderboard"
+  )
+    .doc(playerId)
+    .set({
+
+      name:
+        playerName,
+
+      coins:
+        Math.floor(coins),
+
+      lifetimeCoins:
+        Math.floor(
+          lifetimeCoins
+        ),
+
+      rebirths,
+
+      updatedAt:
+        firebase.firestore
+          .FieldValue
+          .serverTimestamp()
+
+    })
+    .then(() => {
+
+      setTimeout(() => {
+        indicator.style.opacity =
+          "0";
+      }, 1500);
+
+    })
+    .catch(error => {
+
+      console.error(
+        "Error Firebase:",
+        error
+      );
+
+      indicator.style.opacity =
+        "0";
+    });
+}
+
+
+/* =========================================================
+   CONTROLES DE TECLADO
+========================================================= */
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    const activeElement =
+      document.activeElement;
+
+    const typing =
+      activeElement &&
+      (
+        activeElement.tagName ===
+          "INPUT" ||
+        activeElement.tagName ===
+          "TEXTAREA"
+      );
+
+    if (typing) {
+      return;
+    }
+
+    if (
+      [
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight"
+      ].includes(
+        event.key
+      )
+    ) {
+      event.preventDefault();
+    }
+
+    const gardenElement =
+      document.getElementById(
+        "garden"
+      );
+
+    const inventoryElement =
+      document.getElementById(
+        "inventoryList"
+      );
+
+    if (
+      event.key ===
+      "ArrowLeft"
+    ) {
+      inventoryElement.scrollBy({
+        left: -160,
+        behavior: "smooth"
+      });
+    }
+
+    else if (
+      event.key ===
+      "ArrowRight"
+    ) {
+      inventoryElement.scrollBy({
+        left: 160,
+        behavior: "smooth"
+      });
+    }
+
+    else if (
+      event.key ===
+      "ArrowUp"
+    ) {
+      gardenElement.scrollBy({
+        top: -160,
+        behavior: "smooth"
+      });
+    }
+
+    else if (
+      event.key ===
+      "ArrowDown"
+    ) {
+      gardenElement.scrollBy({
+        top: 160,
+        behavior: "smooth"
+      });
+    }
+  }
+);
+
+
+/* =========================================================
+   SOPORTE DE TRACKPAD / MOUSE
+========================================================= */
+
+const inventoryListElement =
+  document.getElementById(
+    "inventoryList"
+  );
+
+inventoryListElement.addEventListener(
+  "wheel",
+  event => {
+
+    if (
+      Math.abs(
+        event.deltaY
+      ) >
+      Math.abs(
+        event.deltaX
+      )
+    ) {
+
+      inventoryListElement.scrollLeft +=
+        event.deltaY;
+
+      event.preventDefault();
+    }
+
+  },
+  {
+    passive: false
+  }
+);
+
+
+/* =========================================================
+   CLICK FUERA DE MODALES
+========================================================= */
+
+document
+  .querySelectorAll(
+    ".modal-overlay"
+  )
+  .forEach(
+    modal => {
+
+      modal.addEventListener(
+        "click",
+        event => {
+
+          if (
+            event.target !==
+            modal
+          ) {
+            return;
+          }
+
+          if (
+            modal.id ===
+            "codesModal"
+          ) {
+            closeCodesModal();
+          }
+
+          else if (
+            modal.id ===
+            "streakModal"
+          ) {
+            closeStreakModal();
+          }
+
+          else if (
+            modal.id ===
+            "firebaseModal"
+          ) {
+            closeFirebaseModal();
+          }
+        }
+      );
+    }
+  );
+
+
+/* =========================================================
+   ENTER EN CÓDIGOS
+========================================================= */
+
+document
+  .getElementById(
+    "codeInput"
+  )
+  .addEventListener(
+    "keydown",
+    event => {
+
+      if (
+        event.key ===
+        "Enter"
+      ) {
+        event.preventDefault();
+
+        redeemCode();
+      }
+    }
+  );
+
+
+/* =========================================================
+   BUCLE DE DINERO
+========================================================= */
+
+setInterval(
+  () => {
+
+    const cps =
+      calculateCPS();
+
+    const gained =
+      cps / 10;
+
+    coins +=
+      gained;
+
+    lifetimeCoins +=
+      gained;
+
+    updateUI();
+
+  },
+  100
+);
+
+
+/* =========================================================
+   GUARDADO AUTOMÁTICO
+========================================================= */
+
+setInterval(
+  () => {
+    saveGame();
+  },
+  10000
+);
+
+
+/* =========================================================
+   RESTOCK MEMES
+========================================================= */
+
+setInterval(
+  () => {
+
+    restockTimerVal--;
+
+    if (
+      restockTimerVal <= 0
+    ) {
+
+      restockTimerVal =
+        30;
+
+      restockShop();
+    }
+
+    document.getElementById(
+      "restockTimer"
+    ).innerText =
+      `${restockTimerVal}s`;
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   RESTOCK POWERUPS
+========================================================= */
+
+setInterval(
+  () => {
+
+    restockTimerPowerVal--;
+
+    if (
+      restockTimerPowerVal <=
+      0
+    ) {
+
+      restockTimerPowerVal =
+        60;
+
+      restockPowerupsShop();
+    }
+
+    document.getElementById(
+      "restockTimerPower"
+    ).innerText =
+      `${restockTimerPowerVal}s`;
+
+  },
+  1000
+);
+
+
+/* =========================================================
+   UPDATE TIMER
+========================================================= */
+
+setInterval(
+  updateNextUpdateTimer,
+  1000
+);
+
+updateNextUpdateTimer();
+
+
+/* =========================================================
+   ACTUALIZACIÓN DE POWERUPS
+========================================================= */
+
+setInterval(
+  () => {
+
+    updatePowerupStatus();
+    updateAdminStatus();
+    updateUI();
+
+  },
+  1000
+);
+
+
+
+/* ===== ADMIN ABUSE EXTRA ===== */
+let lastAdminState=isAdminAbuseActive();let mythicAfterAdmin=false,confettiLoop=null;
+function spawnConfettiBurst(){const c=document.getElementById('confettiContainer');if(!c)return;c.style.display='block';const colors=['#ff304f','#ffd21c','#00ffaa','#00d2ff','#a855f7','#ffffff'];for(let i=0;i<25;i++){const d=document.createElement('div');d.className='confetti';d.style.left=Math.random()*100+'vw';d.style.background=colors[Math.floor(Math.random()*colors.length)];d.style.animationDuration=(3+Math.random()*3)+'s';d.style.transform='rotate('+Math.random()*360+'deg)';c.appendChild(d);setTimeout(()=>d.remove(),6500);}}
+function updateAdminExtras(){const active=isAdminAbuseActive();if(active){if(!confettiLoop){spawnConfettiBurst();confettiLoop=setInterval(spawnConfettiBurst,700);}}else{if(confettiLoop){clearInterval(confettiLoop);confettiLoop=null;}const c=document.getElementById('confettiContainer');if(c){c.style.display='none';c.innerHTML='';}}if(lastAdminState&&!active){mythicAfterAdmin=true;restockShop();}lastAdminState=active;}
+const _oldRestockShop=restockShop;restockShop=function(){_oldRestockShop();if(mythicAfterAdmin){const mythics=shopMemes.filter(m=>m.rarity==='Mítico');if(mythics.length){const pick=mythics[Math.floor(Math.random()*mythics.length)];pick.stock=Math.max(1,pick.stock);renderShop();}mythicAfterAdmin=false;}};
+
+/* =========================================================
+   INICIO
+========================================================= */
+
+loadGame();
+
+/*
+  Si entramos durante Admin Abuse,
+  activa inmediatamente el modo visual y confeti.
+*/
+if (
+  isAdminAbuseActive()
+) {
+  document.body.classList.add(
+    "admin-abuse-active"
+  );
+
+  startAdminConfetti();
+}
+
+</script>
+</body>
+</html>
